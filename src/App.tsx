@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   if (!isAuth) {
-    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;
@@ -27,12 +27,14 @@ function App() {
     <BookingProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<ClientLayout />}>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
+          <Route path="/client" element={<ClientLayout />}>
              <Route index element={<Catalog />} />
              <Route path="booking/:serviceId" element={<Wizard />} />
           </Route>
           
-          <Route path="/admin/login" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           
           <Route path="/admin" element={
             <ProtectedRoute>
