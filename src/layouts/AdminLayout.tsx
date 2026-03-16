@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -9,6 +9,12 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 
 export function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin_auth');
+    navigate('/admin/login');
+  };
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
@@ -21,7 +27,7 @@ export function AdminLayout() {
       {/* Sidebar */}
       <aside className="w-64 bg-[#141414] border-r border-[#262626] flex flex-col hidden md:flex">
         <div className="p-6 border-b border-[#262626]">
-           <Link to="/" className="flex items-center space-x-2">
+           <Link to="/" className="flex items-center space-x-2 w-full text-left cursor-pointer">
              <div className="w-8 h-8 rounded bg-gradient-to-tr from-[#d4af37] to-[#f1d570] flex items-center justify-center text-black font-bold">
                AA
              </div>
@@ -51,9 +57,9 @@ export function AdminLayout() {
         </nav>
 
         <div className="p-4 border-t border-[#262626]">
-          <Link to="/" className="flex items-center px-4 py-3 text-gray-400 hover:text-white rounded-lg hover:bg-[#262626] transition-colors">
+          <button onClick={handleLogout} className="w-full flex items-center px-4 py-3 text-gray-400 hover:text-white rounded-lg hover:bg-[#262626] transition-colors">
             <LogOut className="w-5 h-5 mr-3" /> Sair
-          </Link>
+          </button>
         </div>
       </aside>
 

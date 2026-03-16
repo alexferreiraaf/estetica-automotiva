@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { services } from '../data/services';
+import { supabase } from '../lib/supabase';
 
 export type BookingStatus = 'Pendente' | 'Confirmado' | 'Em Execução' | 'Concluído';
 
@@ -18,37 +19,90 @@ export interface Booking {
 
 interface BookingContextType {
   bookings: Booking[];
-  addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'>) => void;
-  updateBookingStatus: (id: string, status: BookingStatus) => void;
+  addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'>) => Promise<void>;
+  updateBookingStatus: (id: string, status: BookingStatus) => Promise<void>;
   getOccupiedSlots: (date: string) => string[];
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    const saved = localStorage.getItem('@auto-aesthetics:bookings');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('@auto-aesthetics:bookings', JSON.stringify(bookings));
-  }, [bookings]);
+    fetchBookings();
 
-  const addBooking = (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('bookings_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          fetchBookings(); // refresh the list when change happens
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchBookings = async () => {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching bookings:', error);
+    } else if (data) {
+      // Data matches our interface exactly due to table schema
+      setBookings(data as Booking[]);
+    }
+  };
+
+  const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
+    // Generate optimistic ID for immediate UI update (optional, but good for UX)
+    const optimisticId = crypto.randomUUID();
     const newBooking: Booking = {
       ...bookingData,
-      id: crypto.randomUUID(),
+      id: optimisticId,
       status: 'Pendente',
       createdAt: new Date().toISOString()
     };
+    
+    // Optimistic update
     setBookings((prev) => [...prev, newBooking]);
+
+    const { error } = await supabase
+      .from('bookings')
+      .insert([bookingData]);
+
+    if (error) {
+      console.error('Error adding booking:', error);
+      // Revert optimistic update if needed
+      fetchBookings();
+    }
   };
 
-  const updateBookingStatus = (id: string, status: BookingStatus) => {
+  const updateBookingStatus = async (id: string, status: BookingStatus) => {
+    // Optimistic update
     setBookings((prev) => 
       prev.map(b => b.id === id ? { ...b, status } : b)
     );
+
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating booking status:', error);
+      // Revert optimistic update on failure
+      fetchBookings();
+    }
   };
 
   const getOccupiedSlots = (date: string) => {
