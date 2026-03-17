@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut, Settings as SettingsIcon, Users, Briefcase } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -20,6 +20,9 @@ export function AdminLayout() {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
     { label: 'Agendamentos', icon: ListTodo, path: '/admin/bookings' },
     { label: 'Calendário', icon: CalendarIcon, path: '/admin/calendar' },
+    { label: 'Clientes', icon: Users, path: '/admin/customers' },
+    { label: 'Serviços', icon: Briefcase, path: '/admin/services' },
+    { label: 'Configurações', icon: SettingsIcon, path: '/admin/settings' },
   ];
 
   return (

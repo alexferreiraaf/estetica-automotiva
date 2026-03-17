@@ -76,6 +76,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     // Optimistic update
     setBookings((prev) => [...prev, newBooking]);
 
+    // 1. Add/Update customer record
+    const { error: customerError } = await supabase
+      .from('customers')
+      .upsert({
+        name: bookingData.customerName,
+        whatsapp: bookingData.whatsapp,
+        car_model: bookingData.carModel,
+        license_plate: bookingData.licensePlate.toUpperCase()
+      }, { onConflict: 'whatsapp' });
+
+    if (customerError) {
+      console.error('Error syncing customer:', customerError);
+    }
+
+    // 2. Add booking
     const { error } = await supabase
       .from('bookings')
       .insert([bookingData]);

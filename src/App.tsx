@@ -9,6 +9,9 @@ import { Dashboard } from './pages/admin/Dashboard';
 import { BookingsList } from './pages/admin/BookingsList';
 import { CalendarView } from './pages/admin/CalendarView';
 import { Login } from './pages/admin/Login';
+import { Settings } from './pages/admin/Settings';
+import { Customers } from './pages/admin/Customers';
+import { Services } from './pages/admin/Services';
 
 // Simple mock authentication check
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -44,6 +47,9 @@ function App() {
              <Route index element={<Dashboard />} />
              <Route path="bookings" element={<BookingsList />} />
              <Route path="calendar" element={<CalendarView />} />
+             <Route path="customers" element={<Customers />} />
+             <Route path="services" element={<Services />} />
+             <Route path="settings" element={<Settings />} />
              <Route path="*" element={<Navigate to="/admin" replace />} />
           </Route>
         </Routes>
