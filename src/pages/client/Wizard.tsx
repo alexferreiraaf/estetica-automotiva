@@ -120,8 +120,8 @@ export function Wizard() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-12 h-12 border-4 border-[#00f0ff]/20 border-t-[#00f0ff] rounded-full animate-spin"></div>
-        <p className="mt-4 text-gray-500">Carregando detalhes do serviço...</p>
+        <div className="w-12 h-12 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin"></div>
+        <p className="mt-4 text-text-muted">Carregando detalhes do serviço...</p>
       </div>
     );
   }
@@ -129,8 +129,8 @@ export function Wizard() {
   if (!service) {
     return (
       <div className="text-center py-20 animate-in fade-in duration-500">
-        <h2 className="text-2xl font-bold text-white mb-4">Serviço não encontrado.</h2>
-        <button onClick={() => navigate('/client')} className="text-[#00f0ff] font-bold hover:underline">Voltar ao catálogo</button>
+        <h2 className="text-2xl font-bold text-text-primary mb-4">Serviço não encontrado.</h2>
+        <button onClick={() => navigate('/client')} className="text-neon-blue font-bold hover:underline">Voltar ao catálogo</button>
       </div>
     );
   }
@@ -157,32 +157,32 @@ export function Wizard() {
       
       {/* Header */}
       {step < 4 && (
-        <div className="mb-8 flex items-center justify-between border-b border-[#262626] pb-4">
+        <div className="mb-8 flex items-center justify-between border-b border-border-main pb-4">
            {step > 1 ? (
-             <button onClick={handleBack} className="text-gray-400 hover:text-white flex items-center transition-colors">
+             <button onClick={handleBack} className="text-text-secondary hover:text-text-primary flex items-center transition-colors">
                <ChevronLeft className="w-5 h-5 mr-1" />
                Voltar
              </button>
            ) : (
-             <Link to="/client" className="text-gray-400 hover:text-white flex items-center transition-colors">
+             <Link to="/client" className="text-text-secondary hover:text-text-primary flex items-center transition-colors">
                <ChevronLeft className="w-5 h-5 mr-1" />
                Catálogo
              </Link>
            )}
-           <div className="text-sm font-medium text-[#d4af37]">Passo {step} de 3</div>
+           <div className="text-sm font-medium text-gold">Passo {step} de 3</div>
         </div>
       )}
 
       {/* Selected Service Info Banner */}
       {step < 4 && service && (
-         <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 mb-8 flex items-center justify-between">
+         <div className="bg-bg-surface border border-border-main rounded-xl p-4 mb-8 flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Serviço Selecionado</p>
-              <h3 className="text-lg font-bold text-white">{service.name}</h3>
+              <p className="text-xs text-text-muted uppercase font-bold tracking-wider mb-1">Serviço Selecionado</p>
+              <h3 className="text-lg font-bold text-text-primary">{service.name}</h3>
             </div>
             <div className="text-right">
-              <p className="text-[#d4af37] font-bold text-lg">R$ {service.price.toFixed(2)}</p>
-              <p className="text-sm text-gray-400">{service.durationHours}h de duração</p>
+              <p className="text-gold font-bold text-lg">R$ {service.price.toFixed(2)}</p>
+              <p className="text-sm text-text-secondary">{service.durationHours}h de duração</p>
             </div>
          </div>
       )}
@@ -190,8 +190,8 @@ export function Wizard() {
       {/* Step 1: Date */}
       {step === 1 && (
         <div>
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <CalendarIcon className="mr-3 text-[#00f0ff]" /> Escolha a Data
+          <h2 className="text-2xl font-bold text-text-primary mb-6 flex items-center">
+            <CalendarIcon className="mr-3 text-neon-blue" /> Escolha a Data
           </h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
              {upcomingDays.map((date, idx) => {
@@ -203,17 +203,17 @@ export function Wizard() {
                    className={cn(
                      "flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200",
                      isSelected 
-                       ? "bg-[#00f0ff]/10 border-[#00f0ff] ring-1 ring-[#00f0ff]" 
-                       : "bg-[#141414] border-[#262626] hover:border-gray-500"
+                       ? "bg-neon-blue/10 border-neon-blue ring-1 ring-neon-blue" 
+                       : "bg-bg-surface border-border-main hover:border-text-muted"
                    )}
                  >
-                   <span className={cn("text-sm", isSelected ? "text-[#00f0ff]" : "text-gray-400")}>
+                   <span className={cn("text-sm", isSelected ? "text-neon-blue" : "text-text-muted")}>
                      {format(date, 'eee', { locale: ptBR })}
                    </span>
-                   <span className={cn("text-xl font-bold mt-1", isSelected ? "text-[#00f0ff]" : "text-white")}>
+                   <span className={cn("text-xl font-bold mt-1", isSelected ? "text-neon-blue" : "text-text-primary")}>
                      {format(date, 'dd')}
                    </span>
-                   <span className={cn("text-xs mt-1", isSelected ? "text-[#00f0ff]" : "text-gray-500")}>
+                   <span className={cn("text-xs mt-1", isSelected ? "text-neon-blue" : "text-text-muted")}>
                      {format(date, 'MMM', { locale: ptBR })}
                    </span>
                  </button>
@@ -225,7 +225,7 @@ export function Wizard() {
                ref={nextStepButtonRef}
                disabled={!selectedDate}
                onClick={handleNext}
-               className="bg-[#00f0ff] text-black font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00b3cc] transition-colors"
+               className="bg-neon-blue text-black font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neon-blue-dark transition-colors"
              >
                Próximo Passo
              </button>
@@ -236,11 +236,11 @@ export function Wizard() {
       {/* Step 2: Time */}
       {step === 2 && (
         <div>
-           <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <Clock className="mr-3 text-[#00f0ff]" /> Escolha o Horário
+           <h2 className="text-2xl font-bold text-text-primary mb-6 flex items-center">
+            <Clock className="mr-3 text-neon-blue" /> Escolha o Horário
           </h2>
-          <p className="text-gray-400 mb-6">
-            Data selecionada: <span className="text-white font-medium">{selectedDate ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR }) : ''}</span>
+          <p className="text-text-secondary mb-6">
+            Data selecionada: <span className="text-text-primary font-medium">{selectedDate ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR }) : ''}</span>
           </p>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
              {timeSlots.map(({ time, available }, idx) => {
@@ -253,10 +253,10 @@ export function Wizard() {
                     className={cn(
                       "py-3 rounded-lg border font-medium transition-all duration-200",
                       !available 
-                        ? "bg-[#1f1f1f] border-transparent text-gray-600 cursor-not-allowed line-through" 
+                        ? "bg-bg-card border-transparent text-text-muted cursor-not-allowed line-through" 
                         : isSelected
-                          ? "bg-[#d4af37]/10 border-[#d4af37] text-[#d4af37] ring-1 ring-[#d4af37]"
-                          : "bg-[#141414] border-[#262626] text-white hover:border-gray-500"
+                          ? "bg-gold/10 border-gold text-gold ring-1 ring-gold"
+                          : "bg-bg-surface border-border-main text-text-primary hover:border-text-muted"
                     )}
                   >
                     {time}
@@ -268,7 +268,7 @@ export function Wizard() {
              <button 
                disabled={!selectedTimeSlot}
                onClick={handleNext}
-               className="bg-[#00f0ff] text-black font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00b3cc] transition-colors"
+               className="bg-neon-blue text-black font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neon-blue-dark transition-colors"
              >
                Preencher Detalhes
              </button>
@@ -279,46 +279,46 @@ export function Wizard() {
       {/* Step 3: Identification */}
       {step === 3 && (
         <form onSubmit={handleSubmit}>
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <User className="mr-3 text-[#00f0ff]" /> Seus Dados
+          <h2 className="text-2xl font-bold text-text-primary mb-6 flex items-center">
+            <User className="mr-3 text-neon-blue" /> Seus Dados
           </h2>
           
-          <div className="space-y-5 bg-[#141414] border border-[#262626] p-6 rounded-xl">
+          <div className="space-y-5 bg-bg-surface border border-border-main p-6 rounded-xl">
              <div>
-               <label className="block text-sm font-medium text-gray-400 mb-1">Nome Completo</label>
+               <label className="block text-sm font-medium text-text-secondary mb-1">Nome Completo</label>
                <input 
                  required
                  type="text" 
                  value={formData.customerName}
                  onChange={e => setFormData({...formData, customerName: e.target.value})}
-                 className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                 className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
                  placeholder="Ex: João Silva"
                />
              </div>
              
              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">WhatsApp</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">WhatsApp</label>
                 <input 
                   required
                   type="tel" 
                   value={formData.whatsapp}
                   onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})}
-                  className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                  className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
                   placeholder="(00) 00000-0000"
                   maxLength={15}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Tipo de Veículo</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Tipo de Veículo</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button 
                     type="button"
                     onClick={() => setFormData({...formData, vehicleType: 'Carro'})}
                     className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
                       formData.vehicleType === 'Carro' 
-                        ? 'bg-[#00f0ff]/10 border-[#00f0ff] text-[#00f0ff]' 
-                        : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                        ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
+                        : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
                     }`}
                   >
                     <Car className="w-5 h-5 mr-2" />
@@ -329,8 +329,8 @@ export function Wizard() {
                     onClick={() => setFormData({...formData, vehicleType: 'Moto'})}
                     className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
                       formData.vehicleType === 'Moto' 
-                        ? 'bg-[#00f0ff]/10 border-[#00f0ff] text-[#00f0ff]' 
-                        : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                        ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
+                        : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
                     }`}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -343,24 +343,24 @@ export function Wizard() {
              
              <div className="grid grid-cols-2 gap-4">
                <div>
-                 <label className="block text-sm font-medium text-gray-400 mb-1">Modelo do Veículo</label>
+                 <label className="block text-sm font-medium text-text-secondary mb-1">Modelo do Veículo</label>
                  <input 
                    required
                    type="text" 
                    value={formData.carModel}
                    onChange={e => setFormData({...formData, carModel: e.target.value})}
-                   className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                   className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
                    placeholder={formData.vehicleType === 'Moto' ? 'Ex: Honda Hornet' : 'Ex: Honda Civic'}
                  />
                </div>
                <div>
-                 <label className="block text-sm font-medium text-gray-400 mb-1">Placa</label>
+                 <label className="block text-sm font-medium text-text-secondary mb-1">Placa</label>
                  <input 
                    required
                    type="text" 
                    value={formData.licensePlate}
                    onChange={e => setFormData({...formData, licensePlate: e.target.value.toUpperCase()})}
-                   className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] uppercase transition-colors"
+                   className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-neon-blue uppercase transition-colors"
                    placeholder="ABC-1234"
                  />
                </div>
@@ -370,7 +370,7 @@ export function Wizard() {
           <div className="mt-8">
              <button 
                type="submit"
-               className="w-full bg-gradient-to-r from-[#00f0ff] to-[#00b3cc] text-black font-bold py-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all duration-300 text-lg flex justify-center items-center"
+               className="w-full bg-gradient-to-r from-neon-blue to-neon-blue-dark text-black font-bold py-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all duration-300 text-lg flex justify-center items-center"
              >
                Confirmar Agendamento <CheckCircle2 className="ml-2 w-5 h-5" />
              </button>
@@ -380,45 +380,45 @@ export function Wizard() {
 
       {/* Step 4: Success */}
       {step === 4 && (
-        <div className="text-center py-10 bg-[#141414] border border-[#00f0ff]/30 rounded-2xl p-8 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#00f0ff] to-[#d4af37]"></div>
+        <div className="text-center py-10 bg-bg-surface border border-neon-blue/30 rounded-2xl p-8 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-blue to-gold"></div>
           
-          <div className="w-20 h-20 bg-[#00f0ff]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-             <CheckCircle2 className="w-10 h-10 text-[#00f0ff]" />
+          <div className="w-20 h-20 bg-neon-blue/10 rounded-full flex items-center justify-center mx-auto mb-6">
+             <CheckCircle2 className="w-10 h-10 text-neon-blue" />
           </div>
           
-          <h2 className="text-3xl font-extrabold text-white mb-2">Agendamento Confirmado!</h2>
-          <p className="text-gray-400 mb-8 max-w-md mx-auto">
+          <h2 className="text-3xl font-extrabold text-text-primary mb-2">Agendamento Confirmado!</h2>
+          <p className="text-text-secondary mb-8 max-w-md mx-auto">
             Seu horário foi reservado com sucesso. Entraremos em contato via WhatsApp caso seja necessário.
           </p>
           
-          <div className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-6 text-left mb-8 divide-y divide-[#262626]">
+          <div className="bg-bg-main border border-border-main rounded-xl p-6 text-left mb-8 divide-y divide-border-main">
              <div className="pb-4 flex items-start">
-                <Car className="w-5 h-5 text-gray-500 mr-3 mt-1" />
+                <Car className="w-5 h-5 text-text-muted mr-3 mt-1" />
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide">Serviço</p>
-                  <p className="text-lg font-bold text-white">{service.name}</p>
+                  <p className="text-sm text-text-muted uppercase tracking-wide">Serviço</p>
+                  <p className="text-lg font-bold text-text-primary">{service.name}</p>
                 </div>
              </div>
              
              <div className="py-4 flex items-start">
-                <CalendarIcon className="w-5 h-5 text-gray-500 mr-3 mt-1" />
+                <CalendarIcon className="w-5 h-5 text-text-muted mr-3 mt-1" />
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide">Data e Horário</p>
-                   <p className="text-lg font-bold text-white">
+                  <p className="text-sm text-text-muted uppercase tracking-wide">Data e Horário</p>
+                   <p className="text-lg font-bold text-text-primary">
                      {selectedDate && format(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
                      {" • "}
-                     <span className="text-[#d4af37]">{selectedTimeSlot}</span>
+                     <span className="text-gold">{selectedTimeSlot}</span>
                    </p>
                 </div>
              </div>
              
              <div className="pt-4 flex items-start">
-                <User className="w-5 h-5 text-gray-500 mr-3 mt-1" />
+                <User className="w-5 h-5 text-text-muted mr-3 mt-1" />
                 <div>
-                  <p className="text-sm text-gray-500 uppercase tracking-wide">Para</p>
-                  <p className="text-lg font-bold text-white">{formData.customerName}</p>
-                  <p className="text-gray-400">{formData.vehicleType}: {formData.carModel} - {formData.licensePlate}</p>
+                  <p className="text-sm text-text-muted uppercase tracking-wide">Para</p>
+                  <p className="text-lg font-bold text-text-primary">{formData.customerName}</p>
+                  <p className="text-text-secondary">{formData.vehicleType}: {formData.carModel} - {formData.licensePlate}</p>
                 </div>
              </div>
           </div>
@@ -444,7 +444,7 @@ export function Wizard() {
 
              <button 
                 onClick={() => navigate('/client')}
-                className="bg-transparent border border-[#262626] text-white hover:bg-[#262626] font-medium py-3 px-8 rounded-lg transition-colors w-full sm:w-auto"
+                className="bg-transparent border border-border-main text-text-primary hover:bg-bg-card font-medium py-3 px-8 rounded-lg transition-colors w-full sm:w-auto"
              >
                Voltar ao Início
              </button>

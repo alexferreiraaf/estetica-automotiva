@@ -126,13 +126,13 @@ export function Services() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-white">Serviços</h1>
-          <p className="text-gray-400 mt-1">Gerencie os tratamentos oferecidos pela sua loja</p>
+          <h1 className="text-3xl font-extrabold text-text-primary">Serviços</h1>
+          <p className="text-text-secondary mt-1">Gerencie os tratamentos oferecidos pela sua loja</p>
         </div>
         
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-gradient-to-r from-[#00f0ff] to-[#00b3cc] text-black font-bold py-3 px-6 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all duration-300 flex items-center justify-center"
+          className="bg-gradient-to-r from-neon-blue to-neon-blue-dark text-black font-bold py-3 px-6 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all duration-300 flex items-center justify-center"
         >
           <Plus className="w-5 h-5 mr-2" />
           Novo Serviço
@@ -140,15 +140,15 @@ export function Services() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 mb-8">
+      <div className="bg-bg-surface border border-border-main rounded-xl p-4 mb-8">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
           <input 
             type="text" 
             placeholder="Buscar por nome ou descrição..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+            className="w-full bg-bg-main border border-border-main rounded-lg py-3 pl-10 pr-4 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
           />
         </div>
       </div>
@@ -159,31 +159,31 @@ export function Services() {
           filteredServices.map((service) => {
             const Icon = iconMap[service.iconName] || Sparkles;
             return (
-              <div key={service.id} className="bg-[#141414] border border-[#262626] rounded-2xl p-6 hover:border-[#00f0ff]/50 transition-all duration-300 group">
+              <div key={service.id} className="bg-bg-surface border border-border-main rounded-2xl p-6 hover:border-neon-blue/50 transition-all duration-300 group">
                 <div className="flex items-start justify-between mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-[#00f0ff]/10 flex items-center justify-center group-hover:bg-[#00f0ff]/20 transition-colors">
-                    <Icon className="w-6 h-6 text-[#00f0ff]" />
+                  <div className="w-12 h-12 rounded-xl bg-neon-blue/10 flex items-center justify-center group-hover:bg-neon-blue/20 transition-colors">
+                    <Icon className="w-6 h-6 text-neon-blue" />
                   </div>
                   <div className="relative">
                     <button 
                       onClick={() => setActiveMenuId(activeMenuId === service.id ? null : service.id)}
-                      className="p-2 text-gray-500 hover:text-white transition-colors"
+                      className="p-2 text-text-muted hover:text-text-primary transition-colors"
                     >
                       <MoreVertical className="w-5 h-5" />
                     </button>
                     
                     {activeMenuId === service.id && (
-                      <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-[#262626] rounded-xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute right-0 mt-2 w-48 bg-bg-surface border border-border-main rounded-xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <button 
                           onClick={() => openEditModal(service)}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#262626] hover:text-white transition-colors flex items-center"
+                          className="w-full text-left px-4 py-3 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary transition-colors flex items-center"
                         >
                           <Save className="w-4 h-4 mr-2" />
                           Editar Serviço
                         </button>
                         <button 
                           onClick={() => handleDeleteService(service.id)}
-                          className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center border-t border-[#262626]"
+                          className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors flex items-center border-t border-border-main"
                         >
                           <X className="w-4 h-4 mr-2" />
                           Excluir Serviço
@@ -193,17 +193,17 @@ export function Services() {
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-2">{service.name}</h3>
-                <p className="text-gray-400 text-sm line-clamp-2 mb-6">
+                <h3 className="text-xl font-bold text-text-primary mb-2">{service.name}</h3>
+                <p className="text-text-secondary text-sm line-clamp-2 mb-6">
                   {service.description}
                 </p>
 
-                <div className="flex items-center justify-between pt-6 border-t border-[#262626]">
-                  <div className="flex items-center text-white font-bold text-lg">
-                    <DollarSign className="w-5 h-5 text-green-500 mr-1" />
+                <div className="flex items-center justify-between pt-6 border-t border-border-main">
+                  <div className="flex items-center text-text-primary font-bold text-lg">
+                    <DollarSign className="w-5 h-5 text-gold mr-1" />
                     <span>R$ {service.price.toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center text-gray-500 text-sm">
+                  <div className="flex items-center text-text-muted text-sm">
                     <Clock className="w-4 h-4 mr-1" />
                     <span>{service.durationHours}h</span>
                   </div>
@@ -212,17 +212,17 @@ export function Services() {
             );
           })
         ) : (
-          <div className="col-span-full py-20 text-center bg-[#141414] border border-dashed border-[#262626] rounded-2xl">
-            <div className="w-16 h-16 bg-[#00f0ff]/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#00f0ff]/10">
-              <Plus className="w-8 h-8 text-gray-600" />
+          <div className="col-span-full py-20 text-center bg-bg-surface border border-dashed border-border-main rounded-2xl">
+            <div className="w-16 h-16 bg-neon-blue/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-neon-blue/10">
+              <Plus className="w-8 h-8 text-text-muted" />
             </div>
-            <p className="text-gray-500 font-medium">
+            <p className="text-text-secondary font-medium">
               {isLoading ? 'Carregando serviços...' : 'Nenhum serviço encontrado.'}
             </p>
             {!isLoading && (
               <button 
                 onClick={() => setIsModalOpen(true)}
-                className="mt-4 text-[#00f0ff] hover:underline transition-all text-sm font-bold"
+                className="mt-4 text-neon-blue hover:underline transition-all text-sm font-bold"
               >
                 Cadastrar o primeiro serviço
               </button>
@@ -234,19 +234,19 @@ export function Services() {
       {/* Add/Edit Service Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-[#141414] border border-[#262626] rounded-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-[#262626] flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white flex items-center">
+          <div className="bg-bg-surface border border-border-main rounded-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-border-main flex items-center justify-between">
+              <h2 className="text-xl font-bold text-text-primary flex items-center">
                 {editingServiceId ? (
-                  <Save className="w-5 h-5 mr-2 text-[#00f0ff]" />
+                  <Save className="w-5 h-5 mr-2 text-neon-blue" />
                 ) : (
-                  <Plus className="w-5 h-5 mr-2 text-[#00f0ff]" />
+                  <Plus className="w-5 h-5 mr-2 text-neon-blue" />
                 )}
                 {editingServiceId ? 'Editar Serviço' : 'Novo Serviço'}
               </h2>
               <button 
                 onClick={closeModal}
-                className="text-gray-500 hover:text-white transition-colors"
+                className="text-text-muted hover:text-text-primary transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -254,56 +254,56 @@ export function Services() {
             
             <form onSubmit={handleSaveService} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Nome do Serviço</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Nome do Serviço</label>
                 <input 
                   required
                   type="text" 
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                  className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
                   placeholder="Ex: Lavagem Premium"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
                 <textarea 
                   required
                   rows={3}
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
-                  className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors resize-none"
+                  className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-neon-blue transition-colors resize-none"
                   placeholder="Descreva o que está incluso no serviço..."
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Preço (R$)</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Preço (R$)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input 
                       required
                       type="number" 
                       step="0.01"
                       value={formData.price}
                       onChange={e => setFormData({...formData, price: e.target.value})}
-                      className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                      className="w-full bg-bg-main border border-border-main rounded-lg py-3 pl-10 pr-4 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Duração (Horas)</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Duração (Horas)</label>
                   <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input 
                       required
                       type="number" 
                       step="0.5"
                       value={formData.durationHours}
                       onChange={e => setFormData({...formData, durationHours: e.target.value})}
-                      className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                      className="w-full bg-bg-main border border-border-main rounded-lg py-3 pl-10 pr-4 text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
                       placeholder="1.0"
                     />
                   </div>
@@ -311,7 +311,7 @@ export function Services() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Ícone Representativo</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Ícone Representativo</label>
                 <div className="grid grid-cols-5 gap-2">
                   {Object.keys(iconMap).map(iconName => {
                     const Icon = iconMap[iconName];
@@ -322,8 +322,8 @@ export function Services() {
                         onClick={() => setFormData({...formData, iconName})}
                         className={`p-3 rounded-lg border flex items-center justify-center transition-all ${
                           formData.iconName === iconName 
-                            ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-[#00f0ff]' 
-                            : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                            ? 'bg-neon-blue/20 border-neon-blue text-neon-blue' 
+                            : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
                         }`}
                       >
                         <Icon className="w-5 h-5" />
@@ -337,13 +337,13 @@ export function Services() {
                 <button 
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 bg-transparent border border-[#262626] text-white font-bold py-3 rounded-xl hover:bg-[#262626] transition-colors"
+                  className="flex-1 bg-transparent border border-border-main text-text-primary font-bold py-3 rounded-xl hover:bg-bg-card transition-colors"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-[#00f0ff] to-[#00b3cc] text-black font-bold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all duration-300 flex items-center justify-center"
+                  className="flex-1 bg-gradient-to-r from-neon-blue to-neon-blue-dark text-black font-bold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all duration-300 flex items-center justify-center"
                 >
                   <Save className="w-5 h-5 mr-2" />
                   {editingServiceId ? 'Atualizar Serviço' : 'Salvar Serviço'}

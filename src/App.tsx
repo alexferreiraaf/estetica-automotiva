@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { BookingProvider } from './context/BookingContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ClientLayout } from './layouts/ClientLayout';
 import { Catalog } from './pages/client/Catalog';
 import { Wizard } from './pages/client/Wizard';
@@ -27,34 +28,36 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <BookingProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          
-          <Route path="/client" element={<ClientLayout />}>
-             <Route index element={<Catalog />} />
-             <Route path="booking/:serviceId" element={<Wizard />} />
-          </Route>
-          
-          <Route path="/login" element={<Login />} />
-          
-          <Route path="/admin" element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
-          }>
-             <Route index element={<Dashboard />} />
-             <Route path="bookings" element={<BookingsList />} />
-             <Route path="calendar" element={<CalendarView />} />
-             <Route path="customers" element={<Customers />} />
-             <Route path="services" element={<Services />} />
-             <Route path="settings" element={<Settings />} />
-             <Route path="*" element={<Navigate to="/admin" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </BookingProvider>
+    <ThemeProvider>
+      <BookingProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            
+            <Route path="/client" element={<ClientLayout />}>
+               <Route index element={<Catalog />} />
+               <Route path="booking/:serviceId" element={<Wizard />} />
+            </Route>
+            
+            <Route path="/login" element={<Login />} />
+            
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }>
+               <Route index element={<Dashboard />} />
+               <Route path="bookings" element={<BookingsList />} />
+               <Route path="calendar" element={<CalendarView />} />
+               <Route path="customers" element={<Customers />} />
+               <Route path="services" element={<Services />} />
+               <Route path="settings" element={<Settings />} />
+               <Route path="*" element={<Navigate to="/admin" replace />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </BookingProvider>
+    </ThemeProvider>
   );
 }
 

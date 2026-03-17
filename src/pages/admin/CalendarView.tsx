@@ -49,33 +49,33 @@ export function CalendarView() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-full">
       
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-extrabold text-white">Calendário</h1>
+        <h1 className="text-3xl font-extrabold text-text-primary">Calendário</h1>
         
-        <div className="flex bg-[#141414] border border-[#262626] rounded-lg overflow-hidden">
-          <button onClick={prevWeek} className="px-4 py-2 hover:bg-[#262626] text-gray-400 hover:text-white transition-colors">
+        <div className="flex bg-bg-surface border border-border-main rounded-lg overflow-hidden">
+          <button onClick={prevWeek} className="px-4 py-2 hover:bg-bg-card text-text-secondary hover:text-text-primary transition-colors">
             Anterior
           </button>
-          <div className="px-4 py-2 border-x border-[#262626] text-white font-medium bg-[#1a1a1a]">
+          <div className="px-4 py-2 border-x border-border-main text-text-primary font-medium bg-bg-main">
             {format(weekDays[0], "dd MMM", { locale: ptBR })} - {format(weekDays[5], "dd MMM", { locale: ptBR })}
           </div>
-          <button onClick={nextWeek} className="px-4 py-2 hover:bg-[#262626] text-gray-400 hover:text-white transition-colors">
+          <button onClick={nextWeek} className="px-4 py-2 hover:bg-bg-card text-text-secondary hover:text-text-primary transition-colors">
             Próxima
           </button>
         </div>
       </div>
 
-      <div className="bg-[#141414] border border-[#262626] rounded-xl flex-1 overflow-auto">
+      <div className="bg-bg-surface border border-border-main rounded-xl flex-1 overflow-auto">
         <div className="min-w-[800px] h-full flex flex-col">
            
            {/* Header */}
-           <div className="flex border-b border-[#262626] sticky top-0 bg-[#141414] z-10">
-              <div className="w-20 border-r border-[#262626] flex-shrink-0 bg-[#1a1a1a]"></div>
+           <div className="flex border-b border-border-main sticky top-0 bg-bg-surface z-10">
+              <div className="w-20 border-r border-border-main flex-shrink-0 bg-bg-main"></div>
               {weekDays.map((day: Date) => (
-                 <div key={day.toISOString()} className="flex-1 px-2 py-3 text-center border-r border-[#262626] last:border-0">
-                    <p className="text-sm font-medium text-gray-400">{format(day, 'EEEE', { locale: ptBR })}</p>
+                 <div key={day.toISOString()} className="flex-1 px-2 py-3 text-center border-r border-border-main last:border-0">
+                    <p className="text-sm font-medium text-text-secondary">{format(day, 'EEEE', { locale: ptBR })}</p>
                     <p className={cn(
                       "text-xl font-bold mt-1",
-                      isSameDay(day, new Date()) ? "text-[#00f0ff]" : "text-white"
+                      isSameDay(day, new Date()) ? "text-neon-blue" : "text-text-primary"
                     )}>
                       {format(day, 'dd/MM')}
                     </p>
@@ -86,10 +86,10 @@ export function CalendarView() {
            {/* Grid */}
            <div className="flex-1 relative">
              {hours.map(hour => (
-               <div key={hour} className="flex min-h-[100px] border-b border-[#262626]">
+               <div key={hour} className="flex min-h-[100px] border-b border-border-main">
                  {/* Timeline */}
-                 <div className="w-20 border-r border-[#262626] flex-shrink-0 flex items-start justify-end pr-2 py-2">
-                    <span className="text-sm text-gray-500 block -mt-4 bg-[#141414] px-1">{hour.toString().padStart(2, '0')}:00</span>
+                 <div className="w-20 border-r border-border-main flex-shrink-0 flex items-start justify-end pr-2 py-2">
+                    <span className="text-sm text-text-muted block -mt-4 bg-bg-surface px-1">{hour.toString().padStart(2, '0')}:00</span>
                  </div>
                  
                  {/* Day cells */}
@@ -97,14 +97,14 @@ export function CalendarView() {
                     const slotData = getBookingForSlot(day, hour);
                     
                     return (
-                      <div key={`${day.toISOString()}-${hour}`} className="flex-1 border-r border-[#262626] last:border-0 relative p-1">
+                      <div key={`${day.toISOString()}-${hour}`} className="flex-1 border-r border-border-main last:border-0 relative p-1">
                          {slotData && slotData.isStart && (
                            <div 
                              className={cn(
                                "absolute top-1 left-1 right-1 rounded-lg p-2 z-10 border overflow-hidden",
                                slotData.booking.status === 'Pendente' ? "bg-red-500/10 border-red-500/20" :
-                               slotData.booking.status === 'Confirmado' ? "bg-[#00f0ff]/10 border-[#00f0ff]/30" :
-                               slotData.booking.status === 'Em Execução' ? "bg-[#d4af37]/10 border-[#d4af37]/30" :
+                               slotData.booking.status === 'Confirmado' ? "bg-neon-blue/10 border-neon-blue/30" :
+                               slotData.booking.status === 'Em Execução' ? "bg-gold/10 border-gold/30" :
                                "bg-green-500/10 border-green-500/20"
                              )}
                              style={{ height: `calc(${slotData.service.durationHours * 100}% - 8px)` }}
@@ -112,14 +112,14 @@ export function CalendarView() {
                               <p className={cn(
                                 "text-xs font-bold leading-tight mb-1",
                                 slotData.booking.status === 'Pendente' ? "text-red-400" :
-                                slotData.booking.status === 'Confirmado' ? "text-[#00f0ff]" :
-                                slotData.booking.status === 'Em Execução' ? "text-[#d4af37]" :
+                                slotData.booking.status === 'Confirmado' ? "text-neon-blue" :
+                                slotData.booking.status === 'Em Execução' ? "text-gold" :
                                 "text-green-500"
                               )}>
                                 {slotData.service.name}
                               </p>
-                              <p className="text-xs text-white truncate">{slotData.booking.customerName}</p>
-                              <p className="text-[10px] text-gray-400 truncate">{slotData.booking.carModel}</p>
+                              <p className="text-xs text-text-primary truncate">{slotData.booking.customerName}</p>
+                              <p className="text-[10px] text-text-muted truncate">{slotData.booking.carModel}</p>
                            </div>
                          )}
                          {/* Visual indicator for occupied cells that aren't the start */}

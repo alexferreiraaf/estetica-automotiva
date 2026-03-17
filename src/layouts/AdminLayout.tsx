@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut, Settings as SettingsIcon, Users, Briefcase, ExternalLink, Share2 } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut, Settings as SettingsIcon, Users, Briefcase, ExternalLink, Share2, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -10,6 +11,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = () => {
     localStorage.removeItem('admin_auth');
@@ -44,16 +46,24 @@ export function AdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-[#0a0a0a]">
+    <div className="min-h-screen flex bg-bg-main text-text-primary transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#141414] border-r border-[#262626] flex flex-col hidden md:flex">
-        <div className="p-6 border-b border-[#262626]">
-           <Link to="/admin" className="flex items-center space-x-2 w-full text-left cursor-pointer">
-             <div className="w-8 h-8 rounded bg-gradient-to-tr from-[#d4af37] to-[#f1d570] flex items-center justify-center text-black font-bold">
+      <aside className="w-64 bg-bg-surface border-r border-border-main flex flex-col hidden md:flex">
+        <div className="p-6 border-b border-border-main flex items-center justify-between">
+           <Link to="/admin" className="flex items-center space-x-2 cursor-pointer">
+             <div className="w-8 h-8 rounded bg-gradient-to-tr from-gold to-gold-light flex items-center justify-center text-black font-bold">
                AA
              </div>
-             <span className="font-bold text-lg text-white">Admin Panel</span>
+             <span className="font-bold text-lg text-text-primary">Admin Panel</span>
            </Link>
+           
+           <button 
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg bg-bg-card border border-border-main text-text-primary hover:border-gold transition-all"
+              title="Trocar tema"
+            >
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </button>
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
@@ -66,8 +76,8 @@ export function AdminLayout() {
                  className={cn(
                    "flex items-center px-4 py-3 rounded-lg font-medium transition-colors",
                    isActive 
-                     ? "bg-[#d4af37]/10 text-[#d4af37]" 
-                     : "text-gray-400 hover:text-white hover:bg-[#262626]"
+                     ? "bg-gold/10 text-gold" 
+                     : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                  )}
                >
                  <item.icon className="w-5 h-5 mr-3" />
@@ -77,23 +87,23 @@ export function AdminLayout() {
            })}
         </nav>
 
-        <div className="p-4 space-y-2 border-t border-[#262626]">
+        <div className="p-4 space-y-2 border-t border-border-main">
           <Link 
             to="/client"
             target="_blank"
-            className="w-full flex items-center px-4 py-3 text-gray-400 hover:text-[#d4af37] rounded-lg hover:bg-[#d4af37]/5 transition-colors"
+            className="w-full flex items-center px-4 py-3 text-text-secondary hover:text-gold rounded-lg hover:bg-gold/5 transition-colors"
           >
             <ExternalLink className="w-5 h-5 mr-3" /> Ver Loja
           </Link>
           <button 
             onClick={handleShare}
-            className="w-full flex items-center px-4 py-3 text-gray-400 hover:text-[#d4af37] rounded-lg hover:bg-[#d4af37]/5 transition-colors text-left"
+            className="w-full flex items-center px-4 py-3 text-text-secondary hover:text-gold rounded-lg hover:bg-gold/5 transition-colors text-left"
           >
             <Share2 className="w-5 h-5 mr-3" /> Compartilhar Loja
           </button>
           <button 
             onClick={handleLogout} 
-            className="w-full flex items-center px-4 py-3 text-gray-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors border-t border-[#262626] mt-2 pt-4"
+            className="w-full flex items-center px-4 py-3 text-text-secondary hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors border-t border-border-main mt-2 pt-4"
           >
             <LogOut className="w-5 h-5 mr-3" /> Sair
           </button>
@@ -103,13 +113,20 @@ export function AdminLayout() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Mobile Header */}
-        <header className="md:hidden bg-[#141414] border-b border-[#262626] p-4 flex items-center justify-between">
+        <header className="md:hidden bg-bg-surface border-b border-border-main p-4 flex items-center justify-between">
            <div className="flex items-center space-x-2">
-             <div className="w-8 h-8 rounded bg-gradient-to-tr from-[#d4af37] to-[#f1d570] flex items-center justify-center text-black font-bold">
+             <div className="w-8 h-8 rounded bg-gradient-to-tr from-gold to-gold-light flex items-center justify-center text-black font-bold">
                AA
              </div>
-             <span className="font-bold text-white">Admin</span>
+             <span className="font-bold text-text-primary">Admin</span>
            </div>
+
+           <button 
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-bg-card border border-border-main text-text-primary hover:border-gold transition-all"
+            >
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
         </header>
         
         <div className="flex-1 overflow-y-auto p-4 md:p-8">

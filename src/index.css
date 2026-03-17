@@ -1,20 +1,53 @@
-@import "tailwindcss";
-
-@theme {
-  --color-neon-blue: #00f0ff;
-  --color-neon-blue-dark: #00b3cc;
-  --color-gold: #d4af37;
-  --color-gold-light: #f1d570;
-  --color-dark-bg: #0a0a0a;
-  --color-dark-surface: #141414;
-  --color-dark-border: #262626;
+:root {
+  --bg-main: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #f1f5f9;
+  --border-main: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  --neon-blue: #00f0ff;
+  --neon-blue-dark: #00b3cc;
+  --gold: #d4af37;
+  --gold-light: #f1d570;
 
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
+:root.dark {
+  --bg-main: #0a0a0a;
+  --bg-surface: #141414;
+  --bg-card: #1a1a1a;
+  --border-main: #262626;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+}
+
+@import "tailwindcss";
+
+@theme {
+  --color-bg-main: var(--bg-main);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-card: var(--bg-card);
+  --color-border-main: var(--border-main);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  
+  --color-neon-blue: var(--neon-blue);
+  --color-neon-blue-dark: var(--neon-blue-dark);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+
+  --font-sans: var(--font-sans);
+}
+
 @layer base {
   html {
-    background-color: var(--color-dark-bg);
-    color: white;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
