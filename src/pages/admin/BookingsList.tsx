@@ -1,5 +1,6 @@
-import { useBooking, type BookingStatus } from '../../context/BookingContext';
-import { services } from '../../data/services';
+import { useMemo } from 'react';
+import { useBooking } from '../../context/BookingContext';
+import type { BookingStatus, Booking } from '../../context/BookingContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -17,11 +18,13 @@ const statusColors: Record<BookingStatus, string> = {
 };
 
 export function BookingsList() {
-  const { bookings, updateBookingStatus } = useBooking();
+  const { bookings, services, updateBookingStatus } = useBooking();
 
-  const sortedBookings = [...bookings].sort((a, b) => 
-    new Date(`${a.date}T${a.timeSlot}`).getTime() - new Date(`${b.date}T${b.timeSlot}`).getTime()
-  );
+  const sortedBookings = useMemo(() => {
+    return [...bookings].sort((a, b) => 
+      new Date(`${b.date}T${b.timeSlot}`).getTime() - new Date(`${a.date}T${a.timeSlot}`).getTime()
+    );
+  }, [bookings]);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -47,14 +50,24 @@ export function BookingsList() {
                        </td>
                     </tr>
                  ) : (
-                    sortedBookings.map(b => {
+                    sortedBookings.map((b: Booking) => {
                       const service = services.find(s => s.id === b.serviceId);
                       return (
                         <tr key={b.id} className="hover:bg-[#1f1f1f] transition-colors">
                            <td className="px-6 py-4">
-                              <p className="font-bold text-white">{b.customerName}</p>
-                              <p className="text-sm text-gray-400">{b.carModel} • {b.licensePlate}</p>
-                              <p className="text-xs text-gray-500">{b.whatsapp}</p>
+                              <div className="flex items-center">
+                                <div>
+                                  <p className="font-bold text-white">{b.customerName}</p>
+                                  <p className="text-sm text-gray-400">
+                                    <span className={cn(
+                                      "inline-block w-2 h-2 rounded-full mr-2",
+                                      b.vehicleType === 'Moto' ? "bg-blue-400" : "bg-green-400"
+                                    )}></span>
+                                    {b.carModel} • {b.licensePlate}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{b.whatsapp}</p>
+                                </div>
+                              </div>
                            </td>
                            <td className="px-6 py-4">
                               <p className="font-medium text-white">{service?.name}</p>

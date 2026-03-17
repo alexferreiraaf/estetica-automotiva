@@ -1,13 +1,31 @@
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { services } from '../../data/services';
+import { supabase } from '../../lib/supabase';
 import type { Service } from '../../data/services';
 import { ServiceCard } from '../../components/ServiceCard';
 
 export function Catalog() {
   const navigate = useNavigate();
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchServices() {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .order('name');
+      
+      if (!error && data) {
+        setServices(data as Service[]);
+      }
+      setIsLoading(false);
+    }
+    fetchServices();
+  }, []);
 
   const handleSelectService = (service: Service) => {
-    navigate(`/booking/${service.id}`);
+    navigate(`/client/booking/${service.id}`);
   };
 
   return (
@@ -19,15 +37,27 @@ export function Catalog() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.map(service => (
-          <ServiceCard 
-            key={service.id} 
-            service={service} 
-            onSelect={handleSelectService} 
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1,2,3].map(i => (
+            <div key={i} className="bg-[#141414] border border-[#262626] rounded-2xl h-64 animate-pulse"></div>
+          ))}
+        </div>
+      ) : services.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {services.map(service => (
+            <ServiceCard 
+              key={service.id} 
+              service={service} 
+              onSelect={handleSelectService} 
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-[#141414] border border-dashed border-[#262626] rounded-2xl">
+          <p className="text-gray-500">Nenhum serviço disponível no momento.</p>
+        </div>
+      )}
     </div>
   );
 }

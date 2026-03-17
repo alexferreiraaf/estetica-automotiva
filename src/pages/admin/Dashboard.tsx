@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { useBooking } from '../../context/BookingContext';
-import { services } from '../../data/services';
 import { Calendar, CheckCircle2, DollarSign, Clock } from 'lucide-react';
 import { isSameDay, startOfToday, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 
 export function Dashboard() {
-  const { bookings } = useBooking();
+  const { bookings, services } = useBooking();
 
   const stats = useMemo(() => {
     const today = startOfToday();

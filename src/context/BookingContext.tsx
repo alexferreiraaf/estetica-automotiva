@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { services } from '../data/services';
 import { supabase } from '../lib/supabase';
+import type { Service } from '../data/services';
 
 export type BookingStatus = 'Pendente' | 'Confirmado' | 'Em Execução' | 'Concluído';
 
@@ -13,12 +13,14 @@ export interface Booking {
   whatsapp: string;
   carModel: string;
   licensePlate: string;
+  vehicleType: string;
   status: BookingStatus;
   createdAt: string;
 }
 
 interface BookingContextType {
   bookings: Booking[];
+  services: Service[];
   addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'>) => Promise<void>;
   updateBookingStatus: (id: string, status: BookingStatus) => Promise<void>;
   getOccupiedSlots: (date: string) => string[];
@@ -28,9 +30,11 @@ const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [dbServices, setDbServices] = useState<Service[]>([]);
 
   useEffect(() => {
     fetchBookings();
+    fetchServices();
 
     // Subscribe to realtime changes
     const channel = supabase
@@ -39,7 +43,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         () => {
-          fetchBookings(); // refresh the list when change happens
+          fetchBookings();
         }
       )
       .subscribe();
@@ -55,16 +59,22 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       .select('*')
       .order('createdAt', { ascending: false });
     
-    if (error) {
-      console.error('Error fetching bookings:', error);
-    } else if (data) {
-      // Data matches our interface exactly due to table schema
+    if (!error && data) {
       setBookings(data as Booking[]);
     }
   };
 
+  const fetchServices = async () => {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*');
+    
+    if (!error && data) {
+      setDbServices(data as Service[]);
+    }
+  };
+
   const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
-    // Generate optimistic ID for immediate UI update (optional, but good for UX)
     const optimisticId = crypto.randomUUID();
     const newBooking: Booking = {
       ...bookingData,
@@ -73,37 +83,37 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString()
     };
     
-    // Optimistic update
     setBookings((prev) => [...prev, newBooking]);
 
-    // 1. Add/Update customer record
-    const { error: customerError } = await supabase
-      .from('customers')
-      .upsert({
-        name: bookingData.customerName,
-        whatsapp: bookingData.whatsapp,
-        car_model: bookingData.carModel,
-        license_plate: bookingData.licensePlate.toUpperCase()
-      }, { onConflict: 'whatsapp' });
+    await supabase.from('customers').upsert({
+      name: bookingData.customerName,
+      whatsapp: bookingData.whatsapp,
+      carModel: bookingData.carModel,
+      licensePlate: bookingData.licensePlate.toUpperCase(),
+      vehicleType: (bookingData as any).vehicleType || 'Carro'
+    }, { onConflict: 'whatsapp' });
 
-    if (customerError) {
-      console.error('Error syncing customer:', customerError);
-    }
-
-    // 2. Add booking
     const { error } = await supabase
       .from('bookings')
-      .insert([bookingData]);
+      .insert([{
+        id: optimisticId,
+        serviceId: bookingData.serviceId,
+        date: bookingData.date,
+        timeSlot: bookingData.timeSlot,
+        customerName: bookingData.customerName,
+        whatsapp: bookingData.whatsapp,
+        carModel: bookingData.carModel,
+        licensePlate: bookingData.licensePlate.toUpperCase(),
+        vehicleType: (bookingData as any).vehicleType || 'Carro',
+        status: 'Pendente'
+      }]);
 
     if (error) {
-      console.error('Error adding booking:', error);
-      // Revert optimistic update if needed
       fetchBookings();
     }
   };
 
   const updateBookingStatus = async (id: string, status: BookingStatus) => {
-    // Optimistic update
     setBookings((prev) => 
       prev.map(b => b.id === id ? { ...b, status } : b)
     );
@@ -113,20 +123,18 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       .update({ status })
       .eq('id', id);
 
-    if (error) {
-      console.error('Error updating booking status:', error);
-      // Revert optimistic update on failure
-      fetchBookings();
-    }
+    if (error) fetchBookings();
   };
 
   const getOccupiedSlots = (date: string) => {
-    // Returns array of 'HH:mm' for a given YYYY-MM-DD that are already booked
     const dayBookings = bookings.filter(b => b.date === date);
-    
     let occupied: string[] = [];
+    
     dayBookings.forEach(booking => {
-      const service = services.find(s => s.id === booking.serviceId);
+      // Usar a lista de serviços do banco de dados
+      const service = dbServices.find(s => s.id === booking.serviceId);
+      
+      // Proteção contra erro se o serviço não for encontrado
       if (!service) return;
       
       const startHour = parseInt(booking.timeSlot.split(':')[0]);
@@ -139,7 +147,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BookingContext.Provider value={{ bookings, addBooking, updateBookingStatus, getOccupiedSlots }}>
+    <BookingContext.Provider value={{ bookings, services: dbServices, addBooking, updateBookingStatus, getOccupiedSlots }}>
       {children}
     </BookingContext.Provider>
   );

@@ -7,9 +7,10 @@ interface CustomerRecord {
   id: string;
   name: string;
   whatsapp: string;
-  car_model: string;
-  license_plate: string;
-  created_at: string;
+  carModel: string;
+  licensePlate: string;
+  vehicleType: string;
+  createdAt: string;
   totalBookings?: number;
   lastVisit?: string;
   isFromSupabase?: boolean;
@@ -21,14 +22,24 @@ export function Customers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dbCustomers, setDbCustomers] = useState<CustomerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   
   // Form State
   const [formData, setFormData] = useState({
     name: '',
     whatsapp: '',
     carModel: '',
-    licensePlate: ''
+    licensePlate: '',
+    vehicleType: 'Carro'
   });
+
+  const formatWhatsApp = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+  };
 
   useEffect(() => {
     fetchDbCustomers();
@@ -54,22 +65,55 @@ export function Customers() {
     
     const { error } = await supabase
       .from('customers')
-      .insert([
+      .upsert(
         {
           name: formData.name,
           whatsapp: formData.whatsapp,
-          car_model: formData.carModel,
-          license_plate: formData.licensePlate.toUpperCase()
-        }
-      ]);
+          carModel: formData.carModel,
+          licensePlate: formData.licensePlate.toUpperCase(),
+          vehicleType: formData.vehicleType
+        },
+        { onConflict: 'whatsapp' }
+      );
 
     if (error) {
       console.error('Error adding customer:', error);
-      alert('Erro ao salvar no banco. Verifique se o WhatsApp já está cadastrado ou se a tabela "customers" foi criada.');
+      alert(`Erro ao salvar no banco: ${error.message}\n\nDetalhes: ${error.details || 'Verifique se a tabela "customers" existe e se as colunas estão corretas.'}`);
     } else {
       fetchDbCustomers();
       setIsModalOpen(false);
-      setFormData({ name: '', whatsapp: '', carModel: '', licensePlate: '' });
+      setEditingCustomerId(null);
+      setFormData({ name: '', whatsapp: '', carModel: '', licensePlate: '', vehicleType: 'Carro' });
+    }
+  };
+
+  const handleEditClick = (customer: any) => {
+    setFormData({
+      name: customer.name,
+      whatsapp: customer.whatsapp,
+      carModel: customer.lastCar || customer.carModel,
+      licensePlate: customer.lastPlate || customer.licensePlate,
+      vehicleType: customer.vehicleType || 'Carro'
+    });
+    setEditingCustomerId(customer.id);
+    setIsModalOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const handleDeleteCustomer = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
+
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting customer:', error);
+      alert('Erro ao excluir cliente.');
+    } else {
+      fetchDbCustomers();
+      setActiveMenuId(null);
     }
   };
 
@@ -83,10 +127,11 @@ export function Customers() {
         id: c.id,
         name: c.name,
         whatsapp: c.whatsapp,
-        lastCar: c.car_model,
-        lastPlate: c.license_plate,
+        lastCar: c.carModel,
+        lastPlate: c.licensePlate,
+        vehicleType: c.vehicleType,
         totalBookings: 0,
-        lastVisit: c.created_at,
+        lastVisit: c.createdAt,
         isFromSupabase: true
       });
     });
@@ -106,6 +151,7 @@ export function Customers() {
         whatsapp: booking.whatsapp,
         lastCar: existing?.lastCar || booking.carModel,
         lastPlate: existing?.lastPlate || booking.licensePlate,
+        vehicleType: existing?.vehicleType || 'Carro',
         totalBookings: total,
         lastVisit: booking.date,
         isFromSupabase: existing?.isFromSupabase || false
@@ -158,6 +204,7 @@ export function Customers() {
               <tr className="bg-[#1a1a1a] border-b border-[#262626]">
                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Cliente</th>
                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Último Veículo</th>
+                <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Tipo</th>
                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Agendamentos</th>
                 <th className="px-6 py-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Última Visita</th>
                 <th className="px-6 py-4"></th>
@@ -189,12 +236,28 @@ export function Customers() {
                     <td className="px-6 py-4">
                       <div>
                         <p className="text-white flex items-center">
-                          <Car className="w-4 h-4 mr-2 text-gray-400" /> {customer.lastCar}
+                          {customer.vehicleType === 'Moto' ? (
+                            <svg className="w-4 h-4 mr-2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+                            </svg>
+                          ) : (
+                            <Car className="w-4 h-4 mr-2 text-gray-400" />
+                          )}
+                          {customer.lastCar}
                         </p>
                         <p className="text-[#00f0ff] text-sm font-mono mt-1 flex items-center">
                           <Tag className="w-3 h-3 mr-1" /> {customer.lastPlate}
                         </p>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400">
+                      <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                        customer.vehicleType === 'Moto' 
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                          : 'bg-green-500/10 text-green-400 border border-green-500/20'
+                      }`}>
+                        {customer.vehicleType || 'Carro'}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#1a1a1a] text-gray-300 border border-[#262626]">
@@ -204,10 +267,32 @@ export function Customers() {
                     <td className="px-6 py-4">
                       <p className="text-white text-sm">{new Date(customer.lastVisit).toLocaleDateString('pt-BR')}</p>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-gray-400 hover:text-white transition-colors">
+                    <td className="px-6 py-4 text-right relative">
+                      <button 
+                        onClick={() => setActiveMenuId(activeMenuId === customer.whatsapp ? null : customer.whatsapp)}
+                        className="p-2 text-gray-400 hover:text-white transition-colors"
+                      >
                         <MoreVertical className="w-5 h-5" />
                       </button>
+
+                      {activeMenuId === customer.whatsapp && (
+                        <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-[#262626] rounded-xl shadow-2xl z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          <button 
+                            onClick={() => handleEditClick(customer)}
+                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-[#262626] hover:text-white transition-colors flex items-center"
+                          >
+                            <Save className="w-4 h-4 mr-2" />
+                            Editar Cliente
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteCustomer(customer.id)}
+                            className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center border-t border-[#262626]"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Excluir Cliente
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -229,11 +314,19 @@ export function Customers() {
           <div className="bg-[#141414] border border-[#262626] rounded-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-[#262626] flex items-center justify-between">
               <h2 className="text-xl font-bold text-white flex items-center">
-                <Plus className="w-5 h-5 mr-2 text-[#d4af37]" />
-                Cadastrar Novo Cliente
+                {editingCustomerId ? (
+                  <Save className="w-5 h-5 mr-2 text-[#d4af37]" />
+                ) : (
+                  <Plus className="w-5 h-5 mr-2 text-[#d4af37]" />
+                )}
+                {editingCustomerId ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}
               </h2>
               <button 
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingCustomerId(null);
+                  setFormData({ name: '', whatsapp: '', carModel: '', licensePlate: '', vehicleType: 'Carro' });
+                }}
                 className="text-gray-500 hover:text-white transition-colors"
               >
                 <X className="w-6 h-6" />
@@ -259,10 +352,43 @@ export function Customers() {
                   required
                   type="tel" 
                   value={formData.whatsapp}
-                  onChange={e => setFormData({...formData, whatsapp: e.target.value})}
+                  onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})}
                   className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#d4af37] transition-colors"
                   placeholder="(00) 00000-0000"
+                  maxLength={15}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Tipo de Veículo</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({...formData, vehicleType: 'Carro'})}
+                    className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
+                      formData.vehicleType === 'Carro' 
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]' 
+                        : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <Car className="w-5 h-5 mr-2" />
+                    Carro
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({...formData, vehicleType: 'Moto'})}
+                    className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
+                      formData.vehicleType === 'Moto' 
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]' 
+                        : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+                    </svg>
+                    Moto
+                  </button>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -293,7 +419,11 @@ export function Customers() {
               <div className="pt-4 flex gap-3">
                 <button 
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingCustomerId(null);
+                    setFormData({ name: '', whatsapp: '', carModel: '', licensePlate: '', vehicleType: 'Carro' });
+                  }}
                   className="flex-1 bg-transparent border border-[#262626] text-white font-bold py-3 rounded-xl hover:bg-[#262626] transition-colors"
                 >
                   Cancelar
@@ -303,7 +433,7 @@ export function Customers() {
                   className="flex-1 bg-gradient-to-r from-[#d4af37] to-[#f1d570] text-black font-bold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all duration-300 flex items-center justify-center"
                 >
                   <Save className="w-5 h-5 mr-2" />
-                  Salvar Cliente
+                  {editingCustomerId ? 'Atualizar Cliente' : 'Salvar Cliente'}
                 </button>
               </div>
             </form>

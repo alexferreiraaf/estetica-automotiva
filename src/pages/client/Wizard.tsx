@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { services } from '../../data/services';
+import { supabase } from '../../lib/supabase';
+import type { Service } from '../../data/services';
 import { useBooking } from '../../context/BookingContext';
 import { ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle2, User, Car } from 'lucide-react';
 import { format, addDays, startOfToday, isSunday, isPast, isSameDay } from 'date-fns';
@@ -17,28 +18,47 @@ export function Wizard() {
   const navigate = useNavigate();
   const { addBooking, getOccupiedSlots } = useBooking();
   
-  const service = services.find(s => s.id === serviceId);
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const nextStepButtonRef = useRef<HTMLButtonElement>(null);
+  const [service, setService] = useState<Service | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [step, setStep] = useState(1); // 1: Date, 2: Time, 3: Form, 4: Success
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchService() {
+      if (!serviceId) return;
+      
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', serviceId)
+        .single();
+      
+      if (!error && data) {
+        setService(data as Service);
+      }
+      setIsLoading(false);
+    }
+    fetchService();
+  }, [serviceId]);
   
   // Form State
   const [formData, setFormData] = useState({
     customerName: '',
     whatsapp: '',
     carModel: '',
-    licensePlate: ''
+    licensePlate: '',
+    vehicleType: 'Carro'
   });
 
-  if (!service) {
-    return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-bold text-white mb-4">Serviço não encontrado.</h2>
-        <button onClick={() => navigate('/')} className="text-[#00f0ff] hover:underline">Voltar ao catálogo</button>
-      </div>
-    );
-  }
+  const formatWhatsApp = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+  };
 
   // --- Step 1: Date Selection ---
   // Generate next 30 days
@@ -56,28 +76,23 @@ export function Wizard() {
 
   // --- Step 2: Time Selection ---
   const timeSlots = useMemo(() => {
-     if (!selectedDate) return [];
+     if (!selectedDate || !service) return [];
      const dateStr = format(selectedDate, 'yyyy-MM-dd');
      const occupied = getOccupiedSlots(dateStr);
      
      const slots = [];
      for (let h = 8; h <= 17; h++) {
        const slotLabel = `${h.toString().padStart(2, '0')}:00`;
-       // Block logic: Needs service.durationHours consecutive free slots starting at `h`
-       // But wait, the prompt says "block already booked slots". 
-       // For simplicity, we just check if any slot required for the duration is occupied.
-       // However, 1h is typical, but we must check durationHours.
        let canFit = true;
-       // Also if current time is past today's time, disable it
        const slotTime = new Date(selectedDate);
        slotTime.setHours(h, 0, 0, 0);
        
        if (isPast(slotTime)) {
            canFit = false;
        } else {
-           for (let i = 0; i < service.durationHours; i++) {
+           for (let i = 0; i < (service?.durationHours || 1); i++) {
              const checkHour = h + i;
-             if (checkHour >= 18) { canFit = false; break; } // Ends after closing time
+             if (checkHour >= 18) { canFit = false; break; } 
              const checkSlot = `${checkHour.toString().padStart(2, '0')}:00`;
              if (occupied.includes(checkSlot)) { canFit = false; break; }
            }
@@ -86,14 +101,46 @@ export function Wizard() {
        slots.push({ time: slotLabel, available: canFit });
      }
      return slots;
-  }, [selectedDate, getOccupiedSlots, service.durationHours]);
+  }, [selectedDate, getOccupiedSlots, service]);
+
+  // Auto-scroll when date is selected
+  useEffect(() => {
+    if (selectedDate && step === 1 && nextStepButtonRef.current) {
+        nextStepButtonRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedDate, step]);
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    if (containerRef.current) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-12 h-12 border-4 border-[#00f0ff]/20 border-t-[#00f0ff] rounded-full animate-spin"></div>
+        <p className="mt-4 text-gray-500">Carregando detalhes do serviço...</p>
+      </div>
+    );
+  }
+
+  if (!service) {
+    return (
+      <div className="text-center py-20 animate-in fade-in duration-500">
+        <h2 className="text-2xl font-bold text-white mb-4">Serviço não encontrado.</h2>
+        <button onClick={() => navigate('/client')} className="text-[#00f0ff] font-bold hover:underline">Voltar ao catálogo</button>
+      </div>
+    );
+  }
 
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDate || !selectedTimeSlot) return;
+    if (!selectedDate || !selectedTimeSlot || !service) return;
     
     addBooking({
       serviceId: service.id,
@@ -106,7 +153,7 @@ export function Wizard() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div ref={containerRef} className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Header */}
       {step < 4 && (
@@ -117,7 +164,7 @@ export function Wizard() {
                Voltar
              </button>
            ) : (
-             <Link to="/" className="text-gray-400 hover:text-white flex items-center transition-colors">
+             <Link to="/client" className="text-gray-400 hover:text-white flex items-center transition-colors">
                <ChevronLeft className="w-5 h-5 mr-1" />
                Catálogo
              </Link>
@@ -127,7 +174,7 @@ export function Wizard() {
       )}
 
       {/* Selected Service Info Banner */}
-      {step < 4 && (
+      {step < 4 && service && (
          <div className="bg-[#141414] border border-[#262626] rounded-xl p-4 mb-8 flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Serviço Selecionado</p>
@@ -175,6 +222,7 @@ export function Wizard() {
           </div>
           <div className="mt-8 flex justify-end">
              <button 
+               ref={nextStepButtonRef}
                disabled={!selectedDate}
                onClick={handleNext}
                className="bg-[#00f0ff] text-black font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00b3cc] transition-colors"
@@ -249,27 +297,60 @@ export function Wizard() {
              </div>
              
              <div>
-               <label className="block text-sm font-medium text-gray-400 mb-1">WhatsApp</label>
-               <input 
-                 required
-                 type="tel" 
-                 value={formData.whatsapp}
-                 onChange={e => setFormData({...formData, whatsapp: e.target.value})}
-                 className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
-                 placeholder="(00) 00000-0000"
-               />
-             </div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">WhatsApp</label>
+                <input 
+                  required
+                  type="tel" 
+                  value={formData.whatsapp}
+                  onChange={e => setFormData({...formData, whatsapp: formatWhatsApp(e.target.value)})}
+                  className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Tipo de Veículo</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({...formData, vehicleType: 'Carro'})}
+                    className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
+                      formData.vehicleType === 'Carro' 
+                        ? 'bg-[#00f0ff]/10 border-[#00f0ff] text-[#00f0ff]' 
+                        : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <Car className="w-5 h-5 mr-2" />
+                    Carro
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({...formData, vehicleType: 'Moto'})}
+                    className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
+                      formData.vehicleType === 'Moto' 
+                        ? 'bg-[#00f0ff]/10 border-[#00f0ff] text-[#00f0ff]' 
+                        : 'bg-[#0a0a0a] border-[#262626] text-gray-500 hover:border-gray-700'
+                    }`}
+                  >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+                    </svg>
+                    Moto
+                  </button>
+                </div>
+              </div>
              
              <div className="grid grid-cols-2 gap-4">
                <div>
-                 <label className="block text-sm font-medium text-gray-400 mb-1">Modelo do Carro</label>
+                 <label className="block text-sm font-medium text-gray-400 mb-1">Modelo do Veículo</label>
                  <input 
                    required
                    type="text" 
                    value={formData.carModel}
                    onChange={e => setFormData({...formData, carModel: e.target.value})}
                    className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 text-white focus:outline-none focus:border-[#00f0ff] transition-colors"
-                   placeholder="Ex: Honda Civic"
+                   placeholder={formData.vehicleType === 'Moto' ? 'Ex: Honda Hornet' : 'Ex: Honda Civic'}
                  />
                </div>
                <div>
@@ -337,7 +418,7 @@ export function Wizard() {
                 <div>
                   <p className="text-sm text-gray-500 uppercase tracking-wide">Para</p>
                   <p className="text-lg font-bold text-white">{formData.customerName}</p>
-                  <p className="text-gray-400">{formData.carModel} - {formData.licensePlate}</p>
+                  <p className="text-gray-400">{formData.vehicleType}: {formData.carModel} - {formData.licensePlate}</p>
                 </div>
              </div>
           </div>
@@ -346,7 +427,7 @@ export function Wizard() {
              <button 
                 onClick={() => {
                   const dataFormatada = selectedDate ? format(selectedDate, "dd/MM/yyyy") : '';
-                  const mensagem = `Olá! Acabei de realizar um agendamento pelo site.\n\n*Detalhes do Agendamento:*\n🚗 *Serviço:* ${service.name}\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${selectedTimeSlot}\n👤 *Nome:* ${formData.customerName}\n🚘 *Veículo:* ${formData.carModel} (${formData.licensePlate})\n\nAguardo a confirmação!`;
+                  const mensagem = `Olá! Acabei de realizar um agendamento pelo site.\n\n*Detalhes do Agendamento:*\n🚗 *Serviço:* ${service.name}\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${selectedTimeSlot}\n👤 *Nome:* ${formData.customerName}\n🛵 *Duração:* ${service.durationHours}h\n🚘 *Veículo:* ${formData.vehicleType} - ${formData.carModel} (${formData.licensePlate})\n\nAguardo a confirmação!`;
                   
                   // Replace with actual shop owner phone number
                   const numeroLoja = "5511999999999"; 
@@ -362,7 +443,7 @@ export function Wizard() {
              </button>
 
              <button 
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/client')}
                 className="bg-transparent border border-[#262626] text-white hover:bg-[#262626] font-medium py-3 px-8 rounded-lg transition-colors w-full sm:w-auto"
              >
                Voltar ao Início

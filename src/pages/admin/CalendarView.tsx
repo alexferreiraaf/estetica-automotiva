@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useBooking } from '../../context/BookingContext';
-import { services } from '../../data/services';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -11,11 +10,11 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 export function CalendarView() {
-  const { bookings } = useBooking();
+  const { bookings, services } = useBooking();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  const nextWeek = () => setCurrentWeekStart(d => addDays(d, 7));
-  const prevWeek = () => setCurrentWeekStart(d => addDays(d, -7));
+  const nextWeek = () => setCurrentWeekStart((d: Date) => addDays(d, 7));
+  const prevWeek = () => setCurrentWeekStart((d: Date) => addDays(d, -7));
 
   // Generate week days
   const weekDays = useMemo(() => {
@@ -71,7 +70,7 @@ export function CalendarView() {
            {/* Header */}
            <div className="flex border-b border-[#262626] sticky top-0 bg-[#141414] z-10">
               <div className="w-20 border-r border-[#262626] flex-shrink-0 bg-[#1a1a1a]"></div>
-              {weekDays.map(day => (
+              {weekDays.map((day: Date) => (
                  <div key={day.toISOString()} className="flex-1 px-2 py-3 text-center border-r border-[#262626] last:border-0">
                     <p className="text-sm font-medium text-gray-400">{format(day, 'EEEE', { locale: ptBR })}</p>
                     <p className={cn(
@@ -94,7 +93,7 @@ export function CalendarView() {
                  </div>
                  
                  {/* Day cells */}
-                 {weekDays.map(day => {
+                 {weekDays.map((day: Date) => {
                     const slotData = getBookingForSlot(day, hour);
                     
                     return (
