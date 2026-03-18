@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { supabase } from '../../lib/supabase';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -11,22 +12,78 @@ export function Login() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Mock authentication
-    setTimeout(() => {
-      if (email === 'admin@autocenter.com' && password === 'admin123') {
-        // Save auth state (mock)
-        localStorage.setItem('admin_auth', 'true');
-        navigate('/admin');
-      } else {
+    try {
+      // 1. Auth with Supabase Authentication (Now handles everyone)
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (authError) {
         setError('E-mail ou senha incorretos.');
         setIsLoading(false);
+        return;
       }
-    }, 1000);
+
+      const user = authData.user;
+
+      // 2. Check Role
+      // Super Admin check (based on authenticated email)
+      if (user?.email === 'super@plataforma.com') {
+        localStorage.setItem('superadmin_auth', 'true');
+        navigate('/superadmin');
+        return;
+      }
+
+      // 3. Fetch Aesthetic Metadata and check status
+      const { data: aesthetic, error: dbError } = await supabase
+        .from('aesthetics')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (dbError || !aesthetic) {
+        // Fallback: Tentar pelo e-mail caso o user_id ainda não esteja vinculado (legado)
+        const { data: legacyAesthetic, error: legacyError } = await supabase
+          .from('aesthetics')
+          .select('*')
+          .eq('email', email)
+          .single();
+        
+        if (legacyError || !legacyAesthetic) {
+          setError('Perfil da estética não encontrado.');
+          return;
+        }
+        
+        if (legacyAesthetic.status === 'blocked') {
+          setError('Sua conta está bloqueada pelo administrador.');
+          return;
+        }
+
+        localStorage.setItem('admin_auth', 'true');
+        localStorage.setItem('aesthetic_id', legacyAesthetic.id);
+        navigate('/admin');
+        return;
+      }
+
+      if (aesthetic.status === 'blocked') {
+        setError('Sua conta está bloqueada pelo administrador.');
+        return;
+      }
+
+      localStorage.setItem('admin_auth', 'true');
+      localStorage.setItem('aesthetic_id', aesthetic.id);
+      navigate('/admin');
+    } catch (err) {
+      setError('Erro ao conectar ao servidor.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -77,7 +134,7 @@ export function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all placeholder:text-text-muted/50"
-                  placeholder="admin@autocenter.com"
+                  placeholder="Seu e-mail"
                 />
               </div>
             </div>
@@ -126,9 +183,10 @@ export function Login() {
           </form>
         </div>
         
-        <div className="bg-bg-main border-t border-border-main p-4 text-center">
-          <p className="text-xs text-text-muted">
-            Dica: use <strong className="text-text-secondary">admin@autocenter.com</strong> / <strong className="text-text-secondary">admin123</strong>
+        <div className="bg-bg-main border-tl border-tr border-border-main p-4 text-center">
+          <p className="text-[10px] text-text-muted leading-relaxed">
+            Admin: <strong className="text-text-secondary">admin@autocenter.com</strong> / <strong className="text-text-secondary">admin123</strong><br/>
+            Super: <strong className="text-text-secondary">super@plataforma.com</strong> / <strong className="text-text-secondary">super123</strong>
           </p>
         </div>
       </div>

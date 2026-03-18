@@ -3,6 +3,7 @@ import { useBooking } from '../../context/BookingContext';
 import type { BookingStatus, Booking } from '../../context/BookingContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -18,7 +19,7 @@ const statusColors: Record<BookingStatus, string> = {
 };
 
 export function BookingsList() {
-  const { bookings, services, updateBookingStatus } = useBooking();
+  const { bookings, services, updateBookingStatus, deleteBooking } = useBooking();
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort((a, b) => 
@@ -86,15 +87,28 @@ export function BookingsList() {
                               </span>
                            </td>
                            <td className="px-6 py-4 text-right">
-                              <select
-                                value={b.status}
-                                onChange={(e) => updateBookingStatus(b.id, e.target.value as BookingStatus)}
-                                className="bg-bg-main border border-border-main text-text-primary text-sm rounded-lg focus:ring-neon-blue focus:border-neon-blue block w-full p-2.5 outline-none cursor-pointer"
-                              >
-                                {Object.keys(statusColors).map(status => (
-                                  <option key={status} value={status}>{status}</option>
-                                ))}
-                              </select>
+                              <div className="flex items-center justify-end gap-3">
+                                 <select
+                                   value={b.status}
+                                   onChange={(e) => updateBookingStatus(b.id, e.target.value as BookingStatus)}
+                                   className="bg-bg-main border border-border-main text-text-primary text-sm rounded-lg focus:ring-neon-blue focus:border-neon-blue block p-2.5 outline-none cursor-pointer min-w-[140px]"
+                                 >
+                                   {Object.keys(statusColors).map(status => (
+                                     <option key={status} value={status}>{status}</option>
+                                   ))}
+                                 </select>
+                                 <button
+                                   onClick={() => {
+                                     if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+                                       deleteBooking(b.id);
+                                     }
+                                   }}
+                                   className="p-2.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                   title="Excluir agendamento"
+                                 >
+                                   <Trash2 className="w-5 h-5" />
+                                 </button>
+                              </div>
                            </td>
                         </tr>
                       )

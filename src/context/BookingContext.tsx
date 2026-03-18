@@ -23,6 +23,7 @@ interface BookingContextType {
   services: Service[];
   addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'>) => Promise<void>;
   updateBookingStatus: (id: string, status: BookingStatus) => Promise<void>;
+  deleteBooking: (id: string) => Promise<void>;
   getOccupiedSlots: (date: string) => string[];
 }
 
@@ -125,6 +126,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
     if (error) fetchBookings();
   };
+  
+  const deleteBooking = async (id: string) => {
+    setBookings((prev) => prev.filter(b => b.id !== id));
+    const { error } = await supabase.from('bookings').delete().eq('id', id);
+    if (error) fetchBookings();
+  };
 
   const getOccupiedSlots = (date: string) => {
     const dayBookings = bookings.filter(b => b.date === date);
@@ -147,7 +154,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BookingContext.Provider value={{ bookings, services: dbServices, addBooking, updateBookingStatus, getOccupiedSlots }}>
+    <BookingContext.Provider value={{ bookings, services: dbServices, addBooking, updateBookingStatus, deleteBooking, getOccupiedSlots }}>
       {children}
     </BookingContext.Provider>
   );
