@@ -95,7 +95,7 @@ export function Aesthetics() {
           email: formData.email,
           phone: formData.phone,
           user_id: authData.user?.id
-        }, formData.password);
+        });
       }
       await loadData();
       setIsModalOpen(false);

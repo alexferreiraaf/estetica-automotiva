@@ -34,7 +34,7 @@ export const getAesthetics = async (): Promise<Aesthetic[]> => {
   }));
 };
 
-export const saveAesthetic = async (aesthetic: Omit<Aesthetic, 'id' | 'createdAt' | 'status'>, password?: string) => {
+export const saveAesthetic = async (aesthetic: Omit<Aesthetic, 'id' | 'createdAt' | 'status'>) => {
   const { data, error } = await supabase
     .from('aesthetics')
     .insert([
