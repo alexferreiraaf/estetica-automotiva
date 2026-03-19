@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
+import { updateLastLogin } from '../../data/aesthetics';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -59,6 +60,30 @@ export function Login() {
           setError('Perfil da estética não encontrado.');
           return;
         }
+
+        // Se o perfil existe mas o login falhou, tentamos criar a conta de Auth (Auto-reparo)
+        try {
+          await supabase.auth.signUp({
+            email,
+            password
+          });
+          // Tenta logar novamente após o signUp
+          await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+        } catch (authRepairError) {
+          console.warn('Falha no auto-reparo de Auth:', authRepairError);
+        }
+        
+        // Autolink user_id if missing (Self-healing)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!legacyAesthetic.user_id && user?.id) {
+          await supabase
+            .from('aesthetics')
+            .update({ user_id: user.id })
+            .eq('id', legacyAesthetic.id);
+        }
         
         if (legacyAesthetic.status === 'blocked') {
           setError('Sua conta está bloqueada pelo administrador.');
@@ -67,6 +92,7 @@ export function Login() {
 
         localStorage.setItem('admin_auth', 'true');
         localStorage.setItem('aesthetic_id', legacyAesthetic.id);
+        updateLastLogin(legacyAesthetic.id);
         navigate('/admin');
         return;
       }
@@ -78,6 +104,7 @@ export function Login() {
 
       localStorage.setItem('admin_auth', 'true');
       localStorage.setItem('aesthetic_id', aesthetic.id);
+      updateLastLogin(aesthetic.id);
       navigate('/admin');
     } catch (err) {
       setError('Erro ao conectar ao servidor.');
@@ -184,9 +211,8 @@ export function Login() {
         </div>
         
         <div className="bg-bg-main border-tl border-tr border-border-main p-4 text-center">
-          <p className="text-[10px] text-text-muted leading-relaxed">
-            Admin: <strong className="text-text-secondary">admin@autocenter.com</strong> / <strong className="text-text-secondary">admin123</strong><br/>
-            Super: <strong className="text-text-secondary">super@plataforma.com</strong> / <strong className="text-text-secondary">super123</strong>
+          <p className="text-[10px] text-text-muted leading-relaxed uppercase font-bold tracking-widest">
+            Acesso Restrito • Sistema de Gestão
           </p>
         </div>
       </div>

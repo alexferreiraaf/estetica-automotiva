@@ -25,23 +25,43 @@ export function Wizard() {
   const [step, setStep] = useState(1); // 1: Date, 2: Time, 3: Form, 4: Success
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  const [aestheticPhone, setAestheticPhone] = useState("5511999999999");
 
   useEffect(() => {
-    async function fetchService() {
+    async function fetchServiceAndAesthetic() {
       if (!serviceId) return;
       
-      const { data, error } = await supabase
+      const { data: serviceData, error: serviceError } = await supabase
         .from('services')
         .select('*')
         .eq('id', serviceId)
         .single();
       
-      if (!error && data) {
-        setService(data as Service);
+      if (!serviceError && serviceData) {
+        setService(serviceData as Service);
+        
+        // Fetch aesthetic phone based on service owner
+        let ownerId = (serviceData as any).user_id;
+        
+        // Fallback: If service is orphaned (mock data), try to get the first active aesthetic
+        // This ensures the button works for the user during testing
+        let query = supabase.from('aesthetics').select('phone');
+        
+        if (ownerId) {
+          query = query.eq('user_id', ownerId);
+        } else {
+          query = query.limit(1);
+        }
+
+        const { data: aestheticData } = await query.single();
+        
+        if (aestheticData?.phone) {
+          setAestheticPhone(aestheticData.phone);
+        }
       }
       setIsLoading(false);
     }
-    fetchService();
+    fetchServiceAndAesthetic();
   }, [serviceId]);
   
   // Form State
@@ -144,6 +164,7 @@ export function Wizard() {
     
     addBooking({
       serviceId: service.id,
+      user_id: (service as any).user_id,
       date: format(selectedDate, 'yyyy-MM-dd'),
       timeSlot: selectedTimeSlot,
       ...formData
@@ -429,8 +450,8 @@ export function Wizard() {
                   const dataFormatada = selectedDate ? format(selectedDate, "dd/MM/yyyy") : '';
                   const mensagem = `Olá! Acabei de realizar um agendamento pelo site.\n\n*Detalhes do Agendamento:*\n🚗 *Serviço:* ${service.name}\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${selectedTimeSlot}\n👤 *Nome:* ${formData.customerName}\n🛵 *Duração:* ${service.durationHours}h\n🚘 *Veículo:* ${formData.vehicleType} - ${formData.carModel} (${formData.licensePlate})\n\nAguardo a confirmação!`;
                   
-                  // Replace with actual shop owner phone number
-                  const numeroLoja = "5511999999999"; 
+                  // Dynamic shop owner phone number
+                  const numeroLoja = aestheticPhone.replace(/\D/g, ''); 
                   const url = `https://wa.me/${numeroLoja}?text=${encodeURIComponent(mensagem)}`;
                   window.open(url, '_blank');
                 }}

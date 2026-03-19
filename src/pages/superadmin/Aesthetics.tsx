@@ -1,13 +1,378 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, User, Phone, Shield, ShieldOff, X, Save, Building2, Edit2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, 
+  Plus, 
+  User, 
+  Phone, 
+  Shield, 
+  ShieldOff, 
+  X, 
+  Save, 
+  Building2, 
+  Edit2, 
+  BarChart3, 
+  Filter, 
+  Calendar, 
+  DollarSign, 
+  CheckCircle2, 
+  Clock 
+} from 'lucide-react';
 import { getAesthetics, saveAesthetic, updateAesthetic, toggleAestheticStatus, deleteAesthetic } from '../../data/aesthetics';
 import type { Aesthetic } from '../../data/aesthetics';
 import { supabase } from '../../lib/supabase';
+import { twMerge } from 'tailwind-merge';
+import clsx from 'clsx';
+import { 
+  format, 
+  parseISO, 
+  startOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  endOfMonth, 
+  subDays, 
+  isWithinInterval, 
+  startOfDay, 
+  endOfDay,
+  differenceInMinutes,
+  differenceInHours,
+  differenceInDays
+} from 'date-fns';
 
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return twMerge(clsx(inputs));
+}
+
+// --- Utility for Relative Time ---
+function getRelativeTime(dateString?: string) {
+  if (!dateString) return 'Nunca acessou';
+  
+  const date = parseISO(dateString);
+  const now = new Date();
+  
+  const diffMin = differenceInMinutes(now, date);
+  if (diffMin < 5) return 'Online agora';
+  if (diffMin < 60) return `Há ${diffMin} min`;
+  
+  const diffHours = differenceInHours(now, date);
+  if (diffHours < 24) return `Há ${diffHours}h`;
+  
+  const diffDays = differenceInDays(now, date);
+  if (diffDays === 1) return 'Ontem';
+  if (diffDays < 7) return `Há ${diffDays} dias`;
+  
+  return format(date, 'dd/MM/yyyy');
+}
+
+// --- Financial Report Modal Component ---
+function FinancialReportModal({ aesthetic, onClose }: { aesthetic: Aesthetic; onClose: () => void }) {
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({
+    start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    end: format(new Date(), 'yyyy-MM-dd')
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        let bQuery = supabase.from('bookings').select('*');
+        let sQuery = supabase.from('services').select('*');
+        
+        if (aesthetic.user_id) {
+          // Normal mode: Filter by specific user
+          bQuery = bQuery.or(`user_id.eq.${aesthetic.user_id},user_id.is.null`);
+          sQuery = sQuery.or(`user_id.eq.${aesthetic.user_id},user_id.is.null`);
+        } else {
+          // Rescue Mode: If aesthetic not linked, show all orphaned data
+          bQuery = bQuery.is('user_id', null);
+          sQuery = sQuery.is('user_id', null);
+        }
+
+        const { data: bData } = await bQuery;
+        const { data: sData } = await sQuery;
+
+        setBookings(bData || []);
+        setServices(sData || []);
+      } catch (error) {
+        console.error('Error fetching report data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [aesthetic.user_id]);
+
+  const handleQuickFilter = (type: 'today' | 'week' | 'month' | 'last30' | 'all') => {
+    const today = new Date();
+    let start = today;
+    let end = today;
+
+    switch (type) {
+      case 'today':
+        start = today;
+        end = today;
+        break;
+      case 'week':
+        start = startOfWeek(today, { weekStartsOn: 1 });
+        end = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'month':
+        start = startOfMonth(today);
+        end = endOfMonth(today);
+        break;
+      case 'last30':
+        start = subDays(today, 30);
+        end = today;
+        break;
+      case 'all':
+        start = new Date(2020, 0, 1);
+        end = new Date(2030, 11, 31);
+        break;
+    }
+
+    setDateRange({
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd')
+    });
+  };
+
+  const stats = useMemo(() => {
+    const rangeStart = startOfDay(parseISO(dateRange.start));
+    const rangeEnd = endOfDay(parseISO(dateRange.end));
+
+    let periodCount = 0;
+    let pendingCount = 0;
+    let periodRevenue = 0;
+    let totalBookingsInRange = 0;
+
+    const serviceCounts: Record<string, number> = {};
+    const revenueByDay: Record<string, number> = {};
+
+    bookings.forEach(b => {
+      const bookingDate = parseISO(b.date);
+      const service = services.find(s => s.id === b.serviceId);
+      const price = service ? service.price : 0;
+      const serviceName = service ? service.name : 'Desconhecido';
+
+      const isInRange = isWithinInterval(bookingDate, { start: rangeStart, end: rangeEnd });
+
+      if (isInRange) {
+        totalBookingsInRange++;
+        
+        if (b.status === 'Concluído') {
+          periodCount++;
+          periodRevenue += price;
+          const dayKey = b.date;
+          revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + price;
+        }
+
+        if (b.status === 'Pendente') {
+          pendingCount++;
+        }
+
+        serviceCounts[serviceName] = (serviceCounts[serviceName] || 0) + 1;
+      }
+    });
+
+    const topServices = Object.entries(serviceCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const revenueTimeline = Object.entries(revenueByDay)
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      total: totalBookingsInRange,
+      completed: periodCount,
+      pending: pendingCount,
+      revenue: periodRevenue,
+      topServices,
+      revenueTimeline
+    };
+  }, [bookings, services, dateRange]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/90 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
+      <div className="bg-bg-surface border border-border-main rounded-3xl w-full max-w-6xl my-auto animate-in zoom-in-95 duration-300">
+        <div className="p-6 border-b border-border-main flex items-center justify-between sticky top-0 bg-bg-surface z-10 rounded-t-3xl">
+          <div>
+            <h2 className="text-2xl font-bold text-text-primary flex items-center">
+              <BarChart3 className="w-6 h-6 mr-3 text-gold" />
+              Relatório Financeiro: {aesthetic.name}
+            </h2>
+            <p className="text-text-muted text-sm mt-1">Análise detalhada de performance e faturamento</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-card rounded-xl transition-all">
+            <X className="w-8 h-8" />
+          </button>
+        </div>
+
+        <div className="p-6 md:p-8 space-y-8">
+          {/* Filters Area */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-bg-main border border-border-main rounded-xl px-4 py-3 shadow-inner">
+                <Filter className="w-5 h-5 text-text-muted" />
+                <input 
+                  type="date" 
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="bg-transparent text-sm font-bold text-text-primary outline-none focus:ring-0"
+                />
+                <span className="text-text-muted text-sm font-medium">até</span>
+                <input 
+                  type="date" 
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="bg-transparent text-sm font-bold text-text-primary outline-none focus:ring-0"
+                />
+              </div>
+
+              <div className="flex bg-bg-card border border-border-main rounded-xl p-1.5">
+                {['today', 'week', 'month', 'all'].map((type) => (
+                  <button 
+                    key={type}
+                    onClick={() => handleQuickFilter(type as any)}
+                    className="px-4 py-2 text-xs font-bold rounded-lg transition-all hover:bg-bg-surface text-text-secondary hover:text-text-primary capitalize"
+                  >
+                    {type === 'today' ? 'Hoje' : type === 'week' ? 'Semana' : type === 'month' ? 'Mês' : 'Tudo'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {isLoading && (
+              <div className="flex items-center text-gold animate-pulse font-medium">
+                <div className="w-5 h-5 border-2 border-gold/30 border-t-gold rounded-full animate-spin mr-2" />
+                Atualizando...
+              </div>
+            )}
+          </div>
+
+          {!aesthetic.user_id && (
+            <div className="bg-gold/10 border border-gold/20 p-4 rounded-xl flex items-center gap-4 mb-6">
+              <div className="bg-gold/20 p-2 rounded-lg">
+                <BarChart3 className="w-5 h-5 text-gold" />
+              </div>
+              <div className="text-sm">
+                <p className="text-text-primary font-bold">Modo de Resgate Ativado</p>
+                <p className="text-text-secondary">Exibindo dados de teste/agendamentos que ainda não foram vinculados a um usuário específico. Isso acontece porque o proprietário ainda não fez o primeiro login.</p>
+              </div>
+            </div>
+          )}
+
+          {!isLoading ? (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-bg-main border border-border-main p-6 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-text-secondary text-sm font-medium">Agendamentos</span>
+                    <Calendar className="w-5 h-5 text-neon-blue" />
+                  </div>
+                  <p className="text-3xl font-extrabold text-text-primary">{stats.total}</p>
+                </div>
+                <div className="bg-bg-main border border-border-main p-6 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-text-secondary text-sm font-medium">Concluídos</span>
+                    <CheckCircle2 className="w-5 h-5 text-gold" />
+                  </div>
+                  <p className="text-3xl font-extrabold text-text-primary">{stats.completed}</p>
+                </div>
+                <div className="bg-bg-main border border-border-main p-6 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-text-secondary text-sm font-medium">Pendentes</span>
+                    <Clock className="w-5 h-5 text-red-500" />
+                  </div>
+                  <p className="text-3xl font-extrabold text-text-primary">{stats.pending}</p>
+                </div>
+                <div className="bg-bg-main border border-border-main p-6 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-text-secondary text-sm font-medium">Receita Total</span>
+                    <DollarSign className="w-5 h-5 text-green-500" />
+                  </div>
+                  <p className="text-3xl font-extrabold text-text-primary">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.revenue)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Charts Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-bg-main border border-border-main p-6 rounded-2xl">
+                  <h4 className="text-base font-bold text-text-primary mb-6">Serviços Mais Procurados</h4>
+                  {stats.topServices.length > 0 ? (
+                    <div className="space-y-6">
+                      {stats.topServices.map((service) => {
+                        const percentage = (service.count / stats.total) * 100;
+                        return (
+                          <div key={service.name} className="space-y-2">
+                            <div className="flex justify-between text-sm font-bold">
+                              <span className="text-text-primary">{service.name}</span>
+                              <span className="text-text-secondary">{service.count}</span>
+                            </div>
+                            <div className="h-2.5 bg-bg-card rounded-full overflow-hidden">
+                              <div className="h-full bg-gold rounded-full transition-all duration-1000" style={{ width: `${percentage}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="h-40 flex items-center justify-center text-text-muted text-sm border border-dashed border-border-main rounded-xl">
+                      Sem dados de serviços
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-bg-main border border-border-main p-6 rounded-2xl">
+                  <h4 className="text-base font-bold text-text-primary mb-6">Faturamento por Período</h4>
+                  {stats.revenueTimeline.length > 0 ? (
+                    <div className="h-48 flex items-end gap-1.5 pt-4">
+                      {stats.revenueTimeline.map((day) => {
+                        const max = Math.max(...stats.revenueTimeline.map(d => d.amount));
+                        const h = (day.amount / max) * 100;
+                        return (
+                          <div key={day.date} className="flex-1 group relative flex flex-col items-center">
+                            <div className="w-full bg-gradient-to-t from-gold/40 to-gold rounded-t-sm transition-all duration-700 min-h-[2px]" style={{ height: `${h}%` }}>
+                              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-text-primary text-bg-main px-1.5 py-0.5 rounded text-[8px] font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">
+                                R$ {day.amount}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="h-40 flex items-center justify-center text-text-muted text-sm border border-dashed border-border-main rounded-xl">
+                      Sem faturamento no período
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+             <div className="py-20 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 border-4 border-gold/20 border-t-gold rounded-full animate-spin mb-4" />
+                <p className="text-text-muted font-medium">Consolidando dados financeiros...</p>
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Main Aesthetics Component ---
 export function Aesthetics() {
   const [aesthetics, setAesthetics] = useState<Aesthetic[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [reportAesthetic, setReportAesthetic] = useState<Aesthetic | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -80,7 +445,6 @@ export function Aesthetics() {
           phone: formData.phone
         });
       } else {
-        // 1. Criar usuário no Auth do Supabase
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password
@@ -88,7 +452,6 @@ export function Aesthetics() {
 
         if (authError && authError.status !== 400) throw authError;
 
-        // 2. Salvar metadados vinculando o user_id
         await saveAesthetic({
           name: formData.name,
           owner: formData.owner,
@@ -182,7 +545,7 @@ export function Aesthetics() {
                 </tr>
               ) : filteredAesthetics.length > 0 ? (
                 filteredAesthetics.map((aesthetic) => (
-                  <tr key={aesthetic.id} className="hover:bg-bg-card transition-colors">
+                  <tr key={aesthetic.id} className="hover:bg-bg-card transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center mr-3">
@@ -190,7 +553,7 @@ export function Aesthetics() {
                         </div>
                         <div>
                           <p className="text-text-primary font-bold">{aesthetic.name}</p>
-                          <p className="text-text-muted text-xs">Desde {new Date(aesthetic.createdAt).toLocaleDateString('pt-BR')}</p>
+                          <p className="text-text-muted text-xs">Desde {aesthetic.createdAt ? new Date(aesthetic.createdAt).toLocaleDateString('pt-BR') : '...'}</p>
                         </div>
                       </div>
                     </td>
@@ -206,19 +569,34 @@ export function Aesthetics() {
                           <Phone className="w-3 h-3 mr-2 text-text-muted" />
                           {aesthetic.phone}
                         </p>
-                        {aesthetic.status === 'blocked' ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20 w-fit">
-                            <ShieldOff className="w-3 h-3 mr-1" /> Bloqueado
+                        <div className="flex items-center gap-2">
+                          {aesthetic.status === 'blocked' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20 w-fit">
+                              <ShieldOff className="w-3 h-3 mr-1" /> Bloqueado
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20 w-fit">
+                              <Shield className="w-3 h-3 mr-1" /> Ativo
+                            </span>
+                          )}
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider",
+                            getRelativeTime(aesthetic.lastLogin) === 'Online agora' ? "text-neon-blue animate-pulse" : "text-text-muted"
+                          )}>
+                            • {getRelativeTime(aesthetic.lastLogin)}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20 w-fit">
-                            <Shield className="w-3 h-3 mr-1" /> Ativo
-                          </span>
-                        )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        <button 
+                          onClick={() => setReportAesthetic(aesthetic)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-main border border-border-main text-text-primary font-bold text-xs rounded-lg hover:border-gold hover:text-gold transition-all"
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                          Ver Informações
+                        </button>
                         <button 
                           onClick={() => handleEdit(aesthetic)}
                           className="p-2 text-text-muted hover:text-gold hover:bg-gold/10 rounded-lg transition-colors"
@@ -260,7 +638,15 @@ export function Aesthetics() {
         </div>
       </div>
 
-      {/* Add Modal */}
+      {/* Financial Report Modal */}
+      {reportAesthetic && (
+        <FinancialReportModal 
+          aesthetic={reportAesthetic} 
+          onClose={() => setReportAesthetic(null)} 
+        />
+      )}
+
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-bg-surface border border-border-main rounded-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
@@ -369,3 +755,4 @@ export function Aesthetics() {
     </div>
   );
 }
+

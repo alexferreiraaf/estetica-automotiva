@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Building2, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface StoreSettings {
   companyName: string;
@@ -33,12 +34,30 @@ export function Settings() {
     }
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     
+    // Save to localStorage (Legacy/Local UI cache)
+    localStorage.setItem('store_settings', JSON.stringify(settings));
+
+    // Sync to Supabase
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    if (aestheticId) {
+      const { error } = await supabase
+        .from('aesthetics')
+        .update({
+          name: settings.companyName,
+          phone: settings.whatsapp
+        })
+        .eq('id', aestheticId);
+      
+      if (error) {
+        console.error('Error syncing to Supabase:', error);
+      }
+    }
+    
     setTimeout(() => {
-      localStorage.setItem('store_settings', JSON.stringify(settings));
       setIsSaving(false);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);

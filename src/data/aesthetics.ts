@@ -8,6 +8,7 @@ export interface Aesthetic {
   phone: string;
   user_id?: string;
   status: 'active' | 'blocked';
+  lastLogin?: string;
   createdAt: string;
 }
 
@@ -30,6 +31,7 @@ export const getAesthetics = async (): Promise<Aesthetic[]> => {
     phone: item.phone,
     user_id: item.user_id,
     status: item.status,
+    lastLogin: item.last_login,
     createdAt: item.created_at
   }));
 };
@@ -94,5 +96,16 @@ export const deleteAesthetic = async (id: string) => {
   if (error) {
     console.error('Error deleting aesthetic:', error);
     throw error;
+  }
+};
+
+export const updateLastLogin = async (id: string) => {
+  const { error } = await supabase
+    .from('aesthetics')
+    .update({ last_login: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating last login:', error);
   }
 };

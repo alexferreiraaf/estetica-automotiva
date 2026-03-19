@@ -7,6 +7,7 @@ export type BookingStatus = 'Pendente' | 'Confirmado' | 'Em Execução' | 'Concl
 export interface Booking {
   id: string;
   serviceId: string;
+  user_id?: string | null;
   date: string; // ISO string for the date part
   timeSlot: string; // HH:mm format
   customerName: string;
@@ -99,6 +100,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       .insert([{
         id: optimisticId,
         serviceId: bookingData.serviceId,
+        user_id: (bookingData as any).user_id,
         date: bookingData.date,
         timeSlot: bookingData.timeSlot,
         customerName: bookingData.customerName,
