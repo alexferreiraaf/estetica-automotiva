@@ -74,6 +74,16 @@ export function Services() {
       user_id: user?.id
     };
 
+    // Auto-Heal: Garantir que a estética atual está vinculada ao user_id do autor
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    if (aestheticId && user?.id) {
+      await supabase
+        .from('aesthetics')
+        .update({ user_id: user.id })
+        .eq('id', aestheticId)
+        .is('user_id', null); // Só atualiza se estiver nulo para evitar conflitos, ou remova .is se quiser forçar
+    }
+
     const { error } = await supabase
       .from('services')
       .upsert(

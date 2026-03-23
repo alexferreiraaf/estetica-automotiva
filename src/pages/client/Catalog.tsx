@@ -33,10 +33,16 @@ export function Catalog() {
             .eq('user_id', aesthetic.user_id)
             .order('name');
           
-          if (!error && data) {
+          if (error) {
+            console.error('Error fetching services:', error);
+          } else if (data) {
             setServices(data as Service[]);
           }
+        } else {
+          console.warn('Aviso: Esta estética não possui um user_id vinculado. Os serviços não aparecerão até que o dono salve um serviço no painel administrativo.');
         }
+      } else {
+        console.error('Erro: Estética não encontrada para o ID:', aestheticId);
       }
       setIsLoading(false);
     }

@@ -178,11 +178,21 @@ export function Dashboard() {
             
             <div className="flex items-center gap-4 relative z-10">
               <div className="w-14 h-14 bg-linear-to-br from-neon-blue/20 to-neon-blue/5 rounded-xl flex items-center justify-center border border-neon-blue/20 shadow-inner">
-                <CheckCircle2 className="w-7 h-7 text-neon-blue" />
+                {aesthetic.user_id ? (
+                  <CheckCircle2 className="w-7 h-7 text-neon-blue" />
+                ) : (
+                  <Clock className="w-7 h-7 text-gold animate-pulse" />
+                )}
               </div>
               <div>
-                <h3 className="text-xl font-bold text-text-primary mb-1">Seu Link de Agendamento</h3>
-                <p className="text-sm text-text-secondary">Seu catálogo premium está online e pronto para receber clientes.</p>
+                <h3 className="text-xl font-bold text-text-primary mb-1">
+                  {aesthetic.user_id ? 'Seu Link de Agendamento' : 'Configuração Necessária'}
+                </h3>
+                <p className="text-sm text-text-secondary">
+                  {aesthetic.user_id 
+                    ? 'Seu catálogo premium está online e pronto para receber clientes.' 
+                    : 'Sua loja ainda não está visível para clientes. Salve um serviço para ativar seu catálogo.'}
+                </p>
               </div>
             </div>
             
