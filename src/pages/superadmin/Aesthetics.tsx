@@ -384,6 +384,7 @@ export function Aesthetics() {
     phone: '',
     password: ''
   });
+  const [skipAuth, setSkipAuth] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -445,24 +446,39 @@ export function Aesthetics() {
           phone: formData.phone
         });
       } else {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password
-        });
+        let authUserId = null;
 
-        if (authError && authError.status !== 400) throw authError;
+        if (!skipAuth) {
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password
+          });
+
+          if (authError) {
+            if (authError.status === 429) {
+              throw new Error('Limite de tentativas excedido para este e-mail. Marque "Já possui conta" se o usuário já estiver cadastrado.');
+            }
+            // Se o usuário já existe, ignoramos o erro e prosseguimos com o cadastro da estética
+            // O vínculo do user_id será feito automaticamente no primeiro login do usuário
+            if (authError.status !== 400) {
+              throw authError;
+            }
+          }
+          authUserId = authData?.user?.id;
+        }
 
         await saveAesthetic({
           name: formData.name,
           owner: formData.owner,
           email: formData.email,
           phone: formData.phone,
-          user_id: authData.user?.id
+          user_id: authUserId || undefined
         });
       }
       await loadData();
       setIsModalOpen(false);
       setEditingId(null);
+      setSkipAuth(false);
       setFormData({ name: '', owner: '', email: '', phone: '', password: '' });
     } catch (err: any) {
       const msg = err.message || '';
@@ -659,6 +675,7 @@ export function Aesthetics() {
                 onClick={() => {
                   setIsModalOpen(false);
                   setEditingId(null);
+                  setSkipAuth(false);
                   setFormData({ name: '', owner: '', email: '', phone: '', password: '' });
                 }}
                 className="text-text-muted hover:text-text-primary transition-colors"
@@ -709,16 +726,32 @@ export function Aesthetics() {
                   <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Senha de Acesso</label>
                     <input 
-                      required
+                      required={!skipAuth}
                       type="password" 
                       value={formData.password}
+                      disabled={skipAuth}
                       onChange={e => setFormData({...formData, password: e.target.value})}
-                      className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-gold transition-colors"
-                      placeholder="Mínimo 6 caracteres"
+                      className="w-full bg-bg-main border border-border-main rounded-lg p-3 text-text-primary focus:outline-none focus:border-gold transition-colors disabled:opacity-50"
+                      placeholder={skipAuth ? "Já cadastrada" : "Mínimo 6 caracteres"}
                     />
                   </div>
                 )}
               </div>
+
+              {!editingId && (
+                <div className="flex items-center gap-2 px-1">
+                  <input 
+                    type="checkbox"
+                    id="skipAuth"
+                    checked={skipAuth}
+                    onChange={e => setSkipAuth(e.target.checked)}
+                    className="w-4 h-4 rounded border-border-main bg-bg-main text-gold focus:ring-gold"
+                  />
+                  <label htmlFor="skipAuth" className="text-sm text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+                    O usuário já possui conta ou está com limite de tentativas excedido
+                  </label>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">Telefone</label>

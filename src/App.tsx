@@ -49,7 +49,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             
-            <Route path="/client" element={<ClientLayout />}>
+            <Route path="/client/:aestheticId" element={<ClientLayout />}>
                <Route index element={<Catalog />} />
                <Route path="booking/:serviceId" element={<Wizard />} />
             </Route>

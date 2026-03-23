@@ -28,22 +28,53 @@ export function Settings() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('store_settings');
-    if (saved) {
-      setSettings(JSON.parse(saved));
-    }
+    const fetchSettings = async () => {
+      const aestheticId = localStorage.getItem('aesthetic_id');
+      if (!aestheticId) return;
+
+      const saved = localStorage.getItem(`store_settings_${aestheticId}`);
+      let localSettings = defaultSettings;
+      
+      if (saved) {
+        try {
+          localSettings = { ...defaultSettings, ...JSON.parse(saved) };
+        } catch (e) {
+          console.error('Failed to parse local settings', e);
+        }
+      }
+
+      // Fetch from Supabase based on ID
+      const { data, error } = await supabase
+        .from('aesthetics')
+        .select('name, phone')
+        .eq('id', aestheticId)
+        .single();
+        
+      if (data && !error) {
+        setSettings({
+          ...localSettings,
+          companyName: data.name || localSettings.companyName,
+          whatsapp: data.phone || localSettings.whatsapp
+        });
+      } else {
+        setSettings(localSettings);
+      }
+    };
+    
+    fetchSettings();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     
-    // Save to localStorage (Legacy/Local UI cache)
-    localStorage.setItem('store_settings', JSON.stringify(settings));
-
-    // Sync to Supabase
     const aestheticId = localStorage.getItem('aesthetic_id');
+    
     if (aestheticId) {
+      // Save to localStorage using isolated aesthetic namespace
+      localStorage.setItem(`store_settings_${aestheticId}`, JSON.stringify(settings));
+
+      // Sync specific fields back to Supabase
       const { error } = await supabase
         .from('aesthetics')
         .update({

@@ -41,16 +41,13 @@ export function Services() {
     
     let query = supabase.from('services').select('*').order('name');
     
-    // Se o usuário estiver logado, busca os dele OU os que não têm dono (para resgate)
+    // Busca restritamente apenas os serviços deste tenant
     if (user?.id) {
-      query = query.or(`user_id.eq.${user.id},user_id.is.null`);
+      query = query.eq('user_id', user.id);
     } else {
-      // Se não houver sessão auth, mostramos apenas os sem dono (fluxo legado)
-      query = query.is('user_id', null);
+      // Se não houver usuário logado (ex. modo legado inválido), não traz nada
+      query = query.is('id', null);
     }
-    
-    // Se o RLS estiver ativado e nenhum usuário estiver logado, 
-    // a tabela retornará vazia por padrão por segurança.
     
     const { data, error } = await query;
     
@@ -111,28 +108,7 @@ export function Services() {
     }
   };
   
-  const handleClaimService = async (id: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    
-    if (!user?.id) {
-      alert('Você precisa estar logado no Supabase para vincular serviços.');
-      return;
-    }
-    
-    const { error } = await supabase
-      .from('services')
-      .update({ user_id: user.id })
-      .eq('id', id);
-      
-    if (error) {
-      console.error('Error linking service:', error);
-      alert('Erro ao vincular serviço.');
-    } else {
-      fetchServices();
-      setActiveMenuId(null);
-    }
-  };
+  // Claim service removed as it breaks isolation
 
   const openEditModal = (service: Service) => {
     setFormData({
@@ -216,15 +192,6 @@ export function Services() {
                     
                     {activeMenuId === service.id && (
                       <div className="absolute right-0 mt-2 w-48 bg-bg-surface border border-border-main rounded-xl shadow-2xl z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        {!(service as any).user_id && (
-                          <button 
-                            onClick={() => handleClaimService(service.id)}
-                            className="w-full text-left px-4 py-3 text-sm text-neon-blue hover:bg-neon-blue/10 transition-colors flex items-center"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Vincular a Mim
-                          </button>
-                        )}
                         <button 
                           onClick={() => openEditModal(service)}
                           className="w-full text-left px-4 py-3 text-sm text-text-secondary hover:bg-bg-card hover:text-text-primary transition-colors flex items-center"

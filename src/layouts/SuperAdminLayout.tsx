@@ -13,8 +13,9 @@ export function SuperAdminLayout() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem('superadmin_auth');
+    await import('../lib/supabase').then(({ supabase }) => supabase.auth.signOut());
     navigate('/login');
   };
 

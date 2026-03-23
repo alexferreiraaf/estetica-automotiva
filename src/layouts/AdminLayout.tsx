@@ -13,13 +13,17 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem('admin_auth');
-    navigate('/admin/login');
+    localStorage.removeItem('aesthetic_id');
+    localStorage.removeItem('aesthetic_name');
+    await import('../lib/supabase').then(({ supabase }) => supabase.auth.signOut());
+    navigate('/login');
   };
 
   const handleShare = async () => {
-    const url = window.location.origin;
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    const url = `${window.location.origin}/client/${aestheticId}`;
     if (navigator.share) {
       try {
         await navigator.share({
@@ -89,7 +93,7 @@ export function AdminLayout() {
 
         <div className="p-4 space-y-2 border-t border-border-main">
           <Link 
-            to="/client"
+            to={`/client/${localStorage.getItem('aesthetic_id')}`}
             target="_blank"
             className="w-full flex items-center px-4 py-3 text-text-secondary hover:text-gold rounded-lg hover:bg-gold/5 transition-colors"
           >

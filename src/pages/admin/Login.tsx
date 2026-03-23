@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, Sun, Moon, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { updateLastLogin } from '../../data/aesthetics';
@@ -9,6 +9,7 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showActivation, setShowActivation] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -26,7 +27,20 @@ export function Login() {
       });
       
       if (authError) {
-        setError('E-mail ou senha incorretos.');
+        // Se falhou o login, verificamos se o usuário já existe na tabela de estéticas
+        // Se existir, permitimos que ele "ative" a conta (auto-signUp)
+        const { data: aestheticExists } = await supabase
+          .from('aesthetics')
+          .select('id')
+          .eq('email', email)
+          .single();
+
+        if (aestheticExists) {
+          setShowActivation(true);
+          setError('Sua conta ainda não foi ativada ou a senha está incorreta.');
+        } else {
+          setError('E-mail ou senha incorretos.');
+        }
         setIsLoading(false);
         return;
       }
@@ -34,14 +48,13 @@ export function Login() {
       const user = authData.user;
 
       // 2. Check Role
-      // Super Admin check (based on authenticated email)
       if (user?.email === 'super@plataforma.com') {
         localStorage.setItem('superadmin_auth', 'true');
         navigate('/superadmin');
         return;
       }
 
-      // 3. Fetch Aesthetic Metadata and check status
+      // 3. Fetch Aesthetic Metadata
       const { data: aesthetic, error: dbError } = await supabase
         .from('aesthetics')
         .select('*')
@@ -49,50 +62,53 @@ export function Login() {
         .single();
 
       if (dbError || !aesthetic) {
-        // Fallback: Tentar pelo e-mail caso o user_id ainda não esteja vinculado (legado)
-        const { data: legacyAesthetic, error: legacyError } = await supabase
+        // Fallback or Auto-Heal
+        const { data: legacyAesthetic } = await supabase
           .from('aesthetics')
           .select('*')
           .eq('email', email)
           .single();
         
-        if (legacyError || !legacyAesthetic) {
-          setError('Perfil da estética não encontrado.');
-          return;
-        }
+        let aestheticData = legacyAesthetic;
 
-        // Se o perfil existe mas o login falhou, tentamos criar a conta de Auth (Auto-reparo)
-        try {
-          await supabase.auth.signUp({
-            email,
-            password
-          });
-          // Tenta logar novamente após o signUp
-          await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-        } catch (authRepairError) {
-          console.warn('Falha no auto-reparo de Auth:', authRepairError);
-        }
-        
-        // Autolink user_id if missing (Self-healing)
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!legacyAesthetic.user_id && user?.id) {
+        if (!legacyAesthetic) {
+          const { data: newAesthetic, error: createError } = await supabase
+            .from('aesthetics')
+            .insert([{
+              name: 'Minha Estética',
+              owner: email.split('@')[0],
+              email: email,
+              user_id: user.id,
+              status: 'active'
+            }])
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Erro ao auto-criar perfil:', createError);
+            setError('Perfil da estética não encontrado e erro ao gerar acesso automático.');
+            setIsLoading(false);
+            return;
+          }
+          aestheticData = newAesthetic;
+        } else if (!legacyAesthetic.user_id) {
+          // Vincular user_id se estiver faltando
           await supabase
             .from('aesthetics')
             .update({ user_id: user.id })
             .eq('id', legacyAesthetic.id);
         }
-        
-        if (legacyAesthetic.status === 'blocked') {
-          setError('Sua conta está bloqueada pelo administrador.');
+
+        if (aestheticData.status === 'blocked') {
+          setError('Este acesso foi bloqueado pelo administrador.');
+          setIsLoading(false);
           return;
         }
 
         localStorage.setItem('admin_auth', 'true');
-        localStorage.setItem('aesthetic_id', legacyAesthetic.id);
-        updateLastLogin(legacyAesthetic.id);
+        localStorage.setItem('aesthetic_id', aestheticData.id);
+        localStorage.setItem('aesthetic_name', aestheticData.name);
+        await updateLastLogin(aestheticData.id);
         navigate('/admin');
         return;
       }
@@ -104,10 +120,47 @@ export function Login() {
 
       localStorage.setItem('admin_auth', 'true');
       localStorage.setItem('aesthetic_id', aesthetic.id);
-      updateLastLogin(aesthetic.id);
+      localStorage.setItem('aesthetic_name', aesthetic.name);
+      await updateLastLogin(aesthetic.id);
       navigate('/admin');
     } catch (err) {
+      console.error('Erro no login:', err);
       setError('Erro ao conectar ao servidor.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleActivate = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (signUpError) {
+        if (signUpError.status === 429) {
+          throw new Error('Muitas tentativas. Por favor, aguarde alguns minutos antes de tentar ativar novamente.');
+        }
+        throw signUpError;
+      }
+
+      // Tenta logar imediatamente após o signUp
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) throw signInError;
+      
+      // O restante do processo de login será tratado pelo useEffect ou pela continuação do handleLogin
+      // Para simplificar, vamos apenas recarregar a página ou chamar o handleLogin novamente
+      window.location.reload();
+
+    } catch (err: any) {
+      setError(err.message || 'Erro ao ativar conta.');
     } finally {
       setIsLoading(false);
     }
@@ -144,8 +197,21 @@ export function Login() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
-                {error}
+              <div className={`p-3 rounded-lg flex items-center gap-2 mb-6 ${showActivation ? 'bg-blue-500/10 border border-blue-500/50 text-blue-400' : 'bg-red-500/10 border border-red-500/50 text-red-400'}`}>
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <div className="flex flex-col">
+                  <p className="text-sm">{error}</p>
+                  {showActivation && (
+                    <button
+                      type="button"
+                      onClick={handleActivate}
+                      disabled={isLoading}
+                      className="text-xs font-bold underline mt-1 text-left hover:text-blue-300 transition-colors"
+                    >
+                      {isLoading ? 'Ativando...' : 'Clique aqui para ativar sua conta agora'}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             

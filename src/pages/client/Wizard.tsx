@@ -6,15 +6,15 @@ import { useBooking } from '../../context/BookingContext';
 import { ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle2, User, Car } from 'lucide-react';
 import { format, addDays, startOfToday, isSunday, isPast, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import clsx from 'clsx';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
 export function Wizard() {
-  const { serviceId } = useParams();
+  const { aestheticId, serviceId } = useParams();
   const navigate = useNavigate();
   const { addBooking, getOccupiedSlots } = useBooking();
   
@@ -43,14 +43,13 @@ export function Wizard() {
         // Fetch aesthetic phone based on service owner
         let ownerId = (serviceData as any).user_id;
         
-        // Fallback: If service is orphaned (mock data), try to get the first active aesthetic
-        // This ensures the button works for the user during testing
         let query = supabase.from('aesthetics').select('phone');
         
         if (ownerId) {
           query = query.eq('user_id', ownerId);
         } else {
-          query = query.limit(1);
+          // If service is orphan, use the aestheticId from URL if available
+          query = query.eq('id', aestheticId);
         }
 
         const { data: aestheticData } = await query.single();
@@ -62,7 +61,7 @@ export function Wizard() {
       setIsLoading(false);
     }
     fetchServiceAndAesthetic();
-  }, [serviceId]);
+  }, [serviceId, aestheticId]);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -81,7 +80,6 @@ export function Wizard() {
   };
 
   // --- Step 1: Date Selection ---
-  // Generate next 30 days
   const upcomingDays = useMemo(() => {
     const today = startOfToday();
     const days = [];
@@ -123,38 +121,6 @@ export function Wizard() {
      return slots;
   }, [selectedDate, getOccupiedSlots, service]);
 
-  // Auto-scroll when date is selected
-  useEffect(() => {
-    if (selectedDate && step === 1 && nextStepButtonRef.current) {
-        nextStepButtonRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [selectedDate, step]);
-
-  // Scroll to top when step changes
-  useEffect(() => {
-    if (containerRef.current) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [step]);
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-12 h-12 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin"></div>
-        <p className="mt-4 text-text-muted">Carregando detalhes do serviço...</p>
-      </div>
-    );
-  }
-
-  if (!service) {
-    return (
-      <div className="text-center py-20 animate-in fade-in duration-500">
-        <h2 className="text-2xl font-bold text-text-primary mb-4">Serviço não encontrado.</h2>
-        <button onClick={() => navigate('/client')} className="text-neon-blue font-bold hover:underline">Voltar ao catálogo</button>
-      </div>
-    );
-  }
-
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
 
@@ -173,6 +139,24 @@ export function Wizard() {
     setStep(4);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-12 h-12 border-4 border-neon-blue/20 border-t-neon-blue rounded-full animate-spin"></div>
+        <p className="mt-4 text-text-muted">Carregando detalhes do serviço...</p>
+      </div>
+    );
+  }
+
+  if (!service) {
+    return (
+      <div className="text-center py-20 animate-in fade-in duration-500">
+        <h2 className="text-2xl font-bold text-text-primary mb-4">Serviço não encontrado.</h2>
+        <button onClick={() => navigate(`/client/${aestheticId}`)} className="text-neon-blue font-bold hover:underline">Voltar ao catálogo</button>
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       
@@ -185,7 +169,7 @@ export function Wizard() {
                Voltar
              </button>
            ) : (
-             <Link to="/client" className="text-text-secondary hover:text-text-primary flex items-center transition-colors">
+             <Link to={`/client/${aestheticId}`} className="text-text-secondary hover:text-text-primary flex items-center transition-colors">
                <ChevronLeft className="w-5 h-5 mr-1" />
                Catálogo
              </Link>
@@ -267,7 +251,7 @@ export function Wizard() {
              {timeSlots.map(({ time, available }, idx) => {
                 const isSelected = selectedTimeSlot === time;
                 return (
-                  <button
+                   <button
                     key={idx}
                     disabled={!available}
                     onClick={() => setSelectedTimeSlot(time)}
@@ -450,7 +434,6 @@ export function Wizard() {
                   const dataFormatada = selectedDate ? format(selectedDate, "dd/MM/yyyy") : '';
                   const mensagem = `Olá! Acabei de realizar um agendamento pelo site.\n\n*Detalhes do Agendamento:*\n🚗 *Serviço:* ${service.name}\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${selectedTimeSlot}\n👤 *Nome:* ${formData.customerName}\n🛵 *Duração:* ${service.durationHours}h\n🚘 *Veículo:* ${formData.vehicleType} - ${formData.carModel} (${formData.licensePlate})\n\nAguardo a confirmação!`;
                   
-                  // Dynamic shop owner phone number
                   const numeroLoja = aestheticPhone.replace(/\D/g, ''); 
                   const url = `https://wa.me/${numeroLoja}?text=${encodeURIComponent(mensagem)}`;
                   window.open(url, '_blank');
@@ -462,9 +445,9 @@ export function Wizard() {
                </svg>
                Enviar no WhatsApp
              </button>
-
+ 
              <button 
-                onClick={() => navigate('/client')}
+                onClick={() => navigate(`/client/${aestheticId}`)}
                 className="bg-transparent border border-border-main text-text-primary hover:bg-bg-card font-medium py-3 px-8 rounded-lg transition-colors w-full sm:w-auto"
              >
                Voltar ao Início

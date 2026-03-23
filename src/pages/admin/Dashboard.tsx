@@ -15,7 +15,7 @@ import {
 } from 'date-fns';
 
 export function Dashboard() {
-  const { bookings, services } = useBooking();
+  const { bookings, services, aesthetic } = useBooking();
   
   // State for date range
   const [dateRange, setDateRange] = useState({
@@ -168,6 +168,49 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Public Store Link Banner */}
+      {aesthetic && (
+        <div className="mb-10 relative group">
+          <div className="absolute -inset-0.5 bg-linear-to-r from-neon-blue to-gold rounded-2xl blur-xs opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+          <div className="relative bg-bg-surface border border-border-main rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden">
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-neon-blue/5 rounded-full blur-3xl"></div>
+            
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-14 h-14 bg-linear-to-br from-neon-blue/20 to-neon-blue/5 rounded-xl flex items-center justify-center border border-neon-blue/20 shadow-inner">
+                <CheckCircle2 className="w-7 h-7 text-neon-blue" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-text-primary mb-1">Seu Link de Agendamento</h3>
+                <p className="text-sm text-text-secondary">Seu catálogo premium está online e pronto para receber clientes.</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto relative z-10">
+              <div className="relative flex-1 sm:w-80 group/input">
+                <input 
+                  readOnly
+                  value={`${window.location.origin}/client/${aesthetic.id}`}
+                  className="w-full bg-bg-main border border-border-main rounded-xl px-4 py-3 text-sm font-mono text-text-primary focus:outline-none focus:border-neon-blue transition-colors"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-muted">
+                  <DollarSign className="w-4 h-4" />
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/client/${aesthetic.id}`);
+                  // Note: In a real app we'd use a toast notification
+                  alert('Link copiado para a área de transferência!');
+                }}
+                className="w-full sm:w-auto bg-neon-blue text-black font-extrabold py-3 px-8 rounded-xl transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Copiar Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         

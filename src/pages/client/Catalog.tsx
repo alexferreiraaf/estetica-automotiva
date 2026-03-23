@@ -1,28 +1,47 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Service } from '../../data/services';
 import { ServiceCard } from '../../components/ServiceCard';
 
 export function Catalog() {
+  const { aestheticId } = useParams();
   const navigate = useNavigate();
   const [services, setServices] = useState<Service[]>([]);
+  const [aestheticName, setAestheticName] = useState('Estética');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchServices() {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('name');
+    async function fetchData() {
+      if (!aestheticId) return;
+
+      // 1. Fetch Aesthetic Info
+      const { data: aesthetic } = await supabase
+        .from('aesthetics')
+        .select('name, user_id')
+        .eq('id', aestheticId)
+        .single();
       
-      if (!error && data) {
-        setServices(data as Service[]);
+      if (aesthetic) {
+        setAestheticName(aesthetic.name);
+
+        // 2. Fetch Services for this owner
+        if (aesthetic.user_id) {
+          const { data, error } = await supabase
+            .from('services')
+            .select('*')
+            .eq('user_id', aesthetic.user_id)
+            .order('name');
+          
+          if (!error && data) {
+            setServices(data as Service[]);
+          }
+        }
       }
       setIsLoading(false);
     }
-    fetchServices();
-  }, []);
+    fetchData();
+  }, [aestheticId]);
 
   const handleSelectService = (service: Service) => {
     navigate(`/client/booking/${service.id}`);
@@ -31,7 +50,9 @@ export function Catalog() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-text-primary mb-4 tracking-tight">Estética <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-blue-dark">Premium</span></h1>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-text-primary mb-4 tracking-tight">
+          {aestheticName} <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-blue-dark">Premium</span>
+        </h1>
         <p className="text-text-secondary text-lg max-w-2xl mx-auto">
           Eleve o padrão do seu veículo com nossos serviços especializados. Escolha o tratamento ideal abaixo e agende seu horário.
         </p>

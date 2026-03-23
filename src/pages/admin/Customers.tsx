@@ -24,6 +24,13 @@ export function Customers() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+  }, []);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -42,14 +49,18 @@ export function Customers() {
   };
 
   useEffect(() => {
-    fetchDbCustomers();
-  }, []);
+    if (user) {
+      fetchDbCustomers();
+    }
+  }, [user]);
 
   const fetchDbCustomers = async () => {
+    if (!user) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('customers')
       .select('*')
+      .eq('user_id', user.id)
       .order('name');
     
     if (error) {
@@ -63,22 +74,50 @@ export function Customers() {
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = await supabase
+    // Check if this tenant already has a customer with this WhatsApp
+    const { data: existing } = await supabase
       .from('customers')
-      .upsert(
-        {
+      .select('id')
+      .eq('whatsapp', formData.whatsapp)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    let error;
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({
+          name: formData.name,
+          carModel: formData.carModel,
+          licensePlate: formData.licensePlate.toUpperCase(),
+          vehicleType: formData.vehicleType,
+        })
+        .eq('id', existing.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('customers')
+        .insert([{
           name: formData.name,
           whatsapp: formData.whatsapp,
           carModel: formData.carModel,
           licensePlate: formData.licensePlate.toUpperCase(),
-          vehicleType: formData.vehicleType
-        },
-        { onConflict: 'whatsapp' }
-      );
+          vehicleType: formData.vehicleType,
+          user_id: user.id
+        }]);
+      error = insertError;
+    }
 
     if (error) {
       console.error('Error adding customer:', error);
-      alert(`Erro ao salvar no banco: ${error.message}\n\nDetalhes: ${error.details || 'Verifique se a tabela "customers" existe e se as colunas estão corretas.'}`);
+      
+      // Handle the case where the database schema imposes a strict unique constraint on WhatsApp
+      if (error.message?.includes('duplicate key value violates unique constraint')) {
+        alert('Este número de WhatsApp já está registrado no banco de dados geral. O esquema atual do banco exige que a restrição de unicidade do WhatsApp seja alterada para a composição (user_id, whatsapp). Contate o suporte técnico para rodar o script de migração do banco.');
+      } else {
+        alert(`Erro ao salvar no banco: ${error.message}\n\nDetalhes: ${error.details || 'Verifique se a tabela "customers" existe e se as colunas estão corretas.'}`);
+      }
     } else {
       fetchDbCustomers();
       setIsModalOpen(false);
