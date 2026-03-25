@@ -272,7 +272,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       const service = dbServices.find(s => s.id === booking.serviceId);
       if (!service) return;
       
-      const startHour = parseInt(booking.timeSlot.split(':')[0]);
+      if (!booking.timeSlot || typeof booking.timeSlot !== 'string') return;
+      
+      const parts = booking.timeSlot.split(':');
+      if (parts.length < 1) return;
+      
+      const startHour = parseInt(parts[0]);
       for (let i = 0; i < service.durationHours; i++) {
         occupied.push(`${(startHour + i).toString().padStart(2, '0')}:00`);
       }

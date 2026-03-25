@@ -46,7 +46,7 @@ export function Catalog() {
   }, [aestheticId]);
 
   const handleSelectService = (service: Service) => {
-    navigate(`/client/booking/${service.id}`);
+    navigate(`/client/${aestheticId}/booking/${service.id}`);
   };
 
   return (

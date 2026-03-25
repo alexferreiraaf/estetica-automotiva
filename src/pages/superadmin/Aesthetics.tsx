@@ -80,14 +80,14 @@ function FinancialReportModal({ aesthetic, onClose }: { aesthetic: Aesthetic; on
         let bQuery = supabase.from('bookings').select('*');
         let sQuery = supabase.from('services').select('*');
         
-        if (aesthetic.user_id) {
-          // Normal mode: Filter by specific user
+        if (aesthetic.id) {
+          // New Isolation: Filter strictly by aesthetic_id
+          bQuery = bQuery.eq('aesthetic_id', aesthetic.id);
+          sQuery = sQuery.eq('aesthetic_id', aesthetic.id);
+        } else if (aesthetic.user_id) {
+          // Legacy Fallback
           bQuery = bQuery.or(`user_id.eq.${aesthetic.user_id},user_id.is.null`);
           sQuery = sQuery.or(`user_id.eq.${aesthetic.user_id},user_id.is.null`);
-        } else {
-          // Rescue Mode: If aesthetic not linked, show all orphaned data
-          bQuery = bQuery.is('user_id', null);
-          sQuery = sQuery.is('user_id', null);
         }
 
         const { data: bData } = await bQuery;
@@ -102,7 +102,7 @@ function FinancialReportModal({ aesthetic, onClose }: { aesthetic: Aesthetic; on
       }
     };
     fetchData();
-  }, [aesthetic.user_id]);
+  }, [aesthetic.id, aesthetic.user_id]);
 
   const handleQuickFilter = (type: 'today' | 'week' | 'month' | 'last30' | 'all') => {
     const today = new Date();

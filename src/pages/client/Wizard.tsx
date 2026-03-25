@@ -52,7 +52,7 @@ export function Wizard() {
           query = query.eq('id', aestheticId);
         }
 
-        const { data: aestheticData } = await query.single();
+        const { data: aestheticData } = await query.maybeSingle();
         
         if (aestheticData?.phone) {
           setAestheticPhone(aestheticData.phone);
@@ -186,8 +186,8 @@ export function Wizard() {
               <h3 className="text-lg font-bold text-text-primary">{service.name}</h3>
             </div>
             <div className="text-right">
-              <p className="text-gold font-bold text-lg">R$ {service.price.toFixed(2)}</p>
-              <p className="text-sm text-text-secondary">{service.durationHours}h de duração</p>
+              <p className="text-gold font-bold text-lg">R$ {(service.price || 0).toFixed(2)}</p>
+              <p className="text-sm text-text-secondary">{(service.durationHours || 1)}h de duração</p>
             </div>
          </div>
       )}
