@@ -41,11 +41,13 @@ export function Services() {
     
     let query = supabase.from('services').select('*').order('name');
     
-    // Busca restritamente apenas os serviços deste tenant
-    if (user?.id) {
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    
+    if (aestheticId) {
+      query = query.eq('aesthetic_id', aestheticId);
+    } else if (user?.id) {
       query = query.eq('user_id', user.id);
     } else {
-      // Se não houver usuário logado (ex. modo legado inválido), não traz nada
       query = query.is('id', null);
     }
     
@@ -71,17 +73,26 @@ export function Services() {
       price: parseFloat(formData.price),
       durationHours: parseFloat(formData.durationHours),
       iconName: formData.iconName,
-      user_id: user?.id
+      user_id: user?.id,
+      aesthetic_id: localStorage.getItem('aesthetic_id')
     };
 
-    // Auto-Heal: Garantir que a estética atual está vinculada ao user_id do autor
+    // Auto-Heal: Garantir que a estética atual está vinculada ao user_id do autor APENAS se estiver null
     const aestheticId = localStorage.getItem('aesthetic_id');
     if (aestheticId && user?.id) {
-      await supabase
+      // Verifica se já tem dono para não sobrescrever (ex: SuperAdmin editando)
+      const { data: currentAesthetic } = await supabase
         .from('aesthetics')
-        .update({ user_id: user.id })
+        .select('user_id')
         .eq('id', aestheticId)
-        .is('user_id', null); // Só atualiza se estiver nulo para evitar conflitos, ou remova .is se quiser forçar
+        .single();
+
+      if (currentAesthetic && !currentAesthetic.user_id) {
+        await supabase
+          .from('aesthetics')
+          .update({ user_id: user.id })
+          .eq('id', aestheticId);
+      }
     }
 
     const { error } = await supabase

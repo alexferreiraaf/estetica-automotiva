@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Service } from '../data/services';
+import { updateLastLogin } from '../data/aesthetics';
 
 export type BookingStatus = 'Pendente' | 'Confirmado' | 'Em Execução' | 'Concluído';
 
@@ -8,6 +9,7 @@ export interface Booking {
   id: string;
   serviceId: string;
   user_id?: string | null;
+  aesthetic_id?: string | null;
   date: string; // ISO string for the date part
   timeSlot: string; // HH:mm format
   customerName: string;
@@ -41,15 +43,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     // 1. Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        const aestheticId = localStorage.getItem('aesthetic_id');
+        if (aestheticId) updateLastLogin(aestheticId);
+      }
     });
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (_event === 'SIGNED_IN') {
+      if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
+        const aestheticId = localStorage.getItem('aesthetic_id');
+        if (aestheticId) updateLastLogin(aestheticId);
         // Force refetch on sign in
-        fetchBookings(session?.user.id);
-        fetchServices(session?.user.id);
+        fetchBookings(session?.user.id, aestheticId || undefined);
+        fetchServices(session?.user.id, aestheticId || undefined);
         fetchAesthetic(session?.user.id);
       } else if (_event === 'SIGNED_OUT') {
         setBookings([]);
@@ -64,8 +72,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchBookings(user?.id);
-    fetchServices(user?.id);
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    fetchBookings(user?.id, aestheticId || undefined);
+    fetchServices(user?.id, aestheticId || undefined);
 
     // Subscribe to realtime changes
     const channel = supabase
@@ -84,23 +93,23 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.id]);
 
-  const fetchBookings = async (userId?: string) => {
+  const fetchBookings = async (userId?: string, aestheticId?: string) => {
     let query = supabase
       .from('bookings')
       .select('*')
       .order('createdAt', { ascending: false });
     
-    if (userId) {
+    // Prioritize aesthetic_id for isolation
+    const currentAestheticId = aestheticId || localStorage.getItem('aesthetic_id');
+    
+    if (currentAestheticId) {
+      query = query.eq('aesthetic_id', currentAestheticId);
+    } else if (userId) {
       query = query.eq('user_id', userId);
     } else {
-      // If no user, and not in a specific aesthetic's public view, return nothing or public data
-      // For now, if no userId, we only return nothing to prevent leaks in admin panel
-      // (Client view handles its own fetching or passes aestheticId)
+      // If no ID, prevent leaks
       const adminAuth = localStorage.getItem('admin_auth');
-      if (adminAuth === 'true') {
-        // If we think we are admin but have no user.id, wait for auth
-        return;
-      }
+      if (adminAuth === 'true') return;
     }
 
     const { data, error } = await query;
@@ -111,23 +120,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchServices = async (userId?: string, aestheticId?: string) => {
-    let query = supabase.from('services').select('*');
+    let query = supabase.from('services').select('*').order('name');
     
-    if (userId) {
+    const currentAestheticId = aestheticId || localStorage.getItem('aesthetic_id');
+    
+    if (currentAestheticId) {
+      // Always prioritize aesthetic_id for fetching
+      query = query.eq('aesthetic_id', currentAestheticId);
+    } else if (userId) {
       query = query.eq('user_id', userId);
-    } else if (aestheticId) {
-      // Fetch services for a specific aesthetic (Public View)
-      // We need to join or have aestheticId in services
-      // For now, services has user_id which links to aesthetic.user_id
-      const { data: aesthetic } = await supabase
-        .from('aesthetics')
-        .select('user_id')
-        .eq('id', aestheticId)
-        .single();
-      
-      if (aesthetic?.user_id) {
-        query = query.eq('user_id', aesthetic.user_id);
-      }
     } else {
       const adminAuth = localStorage.getItem('admin_auth');
       if (adminAuth === 'true') return;
@@ -142,29 +143,47 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const fetchAesthetic = async (userId?: string) => {
     const currentUserId = userId || user?.id;
-    if (!currentUserId) return;
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    
+    if (!currentUserId || !aestheticId) return;
 
-    const { data, error } = await supabase
+    // Fetch by ID (source of truth for which store we are managing)
+    const { data: aestheticData, error } = await supabase
       .from('aesthetics')
       .select('*')
-      .eq('user_id', currentUserId)
+      .eq('id', aestheticId)
       .single();
     
     if (error) {
       console.error('Error fetching aesthetic:', error);
+      return;
+    }
+
+    // Sync user_id ONLY IF it is currently null (first-time claim)
+    if (aestheticData && !aestheticData.user_id && currentUserId) {
+      console.log('Syncing initial user_id for aesthetic:', aestheticId);
+      await supabase
+        .from('aesthetics')
+        .update({ user_id: currentUserId })
+        .eq('id', aestheticId);
+      
+      // Update local state with the synced data
+      setAesthetic({ ...aestheticData, user_id: currentUserId });
     } else {
-      setAesthetic(data);
+      setAesthetic(aestheticData);
     }
   };
 
   const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
     const optimisticId = crypto.randomUUID();
     const currentUserId = user?.id || (bookingData as any).user_id;
+    const currentAestheticId = localStorage.getItem('aesthetic_id');
 
     const newBooking: Booking = {
       ...bookingData,
       id: optimisticId,
       user_id: currentUserId,
+      aesthetic_id: currentAestheticId,
       status: 'Pendente',
       createdAt: new Date().toISOString()
     };
@@ -178,6 +197,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         .select('id')
         .eq('whatsapp', bookingData.whatsapp)
         .eq('user_id', currentUserId)
+        .eq('aesthetic_id', currentAestheticId)
         .maybeSingle();
 
       if (existingCustomer) {
@@ -197,7 +217,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           carModel: bookingData.carModel,
           licensePlate: bookingData.licensePlate.toUpperCase(),
           vehicleType: (bookingData as any).vehicleType || 'Carro',
-          user_id: currentUserId
+          user_id: currentUserId,
+          aesthetic_id: currentAestheticId
         }]);
       }
     }
@@ -208,6 +229,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         id: optimisticId,
         serviceId: bookingData.serviceId,
         user_id: currentUserId,
+        aesthetic_id: currentAestheticId,
         date: bookingData.date,
         timeSlot: bookingData.timeSlot,
         customerName: bookingData.customerName,

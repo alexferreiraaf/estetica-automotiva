@@ -54,12 +54,13 @@ export function Login() {
         return;
       }
 
-      // 3. Fetch Aesthetic Metadata
-      const { data: aesthetic, error: dbError } = await supabase
+      // 3. Fetch Aesthetics (Handle multiple)
+      const { data: aesthetics, error: dbError } = await supabase
         .from('aesthetics')
         .select('*')
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user?.id);
+      
+      const aesthetic = aesthetics && aesthetics.length > 0 ? aesthetics[0] : null;
 
       if (dbError || !aesthetic) {
         // Fallback or Auto-Heal

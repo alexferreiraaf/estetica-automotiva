@@ -5,6 +5,7 @@ export interface Service {
   price: number;
   durationHours: number;
   iconName: string; // Used to dynamically render lucide-react icons
+  aesthetic_id?: string;
 }
 
 export const services: Service[] = [

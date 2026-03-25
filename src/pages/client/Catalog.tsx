@@ -25,21 +25,17 @@ export function Catalog() {
       if (aesthetic) {
         setAestheticName(aesthetic.name);
 
-        // 2. Fetch Services for this owner
-        if (aesthetic.user_id) {
-          const { data, error } = await supabase
-            .from('services')
-            .select('*')
-            .eq('user_id', aesthetic.user_id)
-            .order('name');
+        // 2. Fetch Services for this aesthetic
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .eq('aesthetic_id', aestheticId)
+          .order('name');
           
-          if (error) {
-            console.error('Error fetching services:', error);
-          } else if (data) {
-            setServices(data as Service[]);
-          }
-        } else {
-          console.warn('Aviso: Esta estética não possui um user_id vinculado. Os serviços não aparecerão até que o dono salve um serviço no painel administrativo.');
+        if (error) {
+          console.error('Error fetching services:', error);
+        } else if (data) {
+          setServices(data as Service[]);
         }
       } else {
         console.error('Erro: Estética não encontrada para o ID:', aestheticId);

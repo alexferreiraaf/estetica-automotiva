@@ -57,10 +57,11 @@ export function Customers() {
   const fetchDbCustomers = async () => {
     if (!user) return;
     setIsLoading(true);
+    const aestheticId = localStorage.getItem('aesthetic_id');
     const { data, error } = await supabase
       .from('customers')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('aesthetic_id', aestheticId)
       .order('name');
     
     if (error) {
@@ -74,12 +75,12 @@ export function Customers() {
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if this tenant already has a customer with this WhatsApp
+    const aestheticId = localStorage.getItem('aesthetic_id');
     const { data: existing } = await supabase
       .from('customers')
       .select('id')
       .eq('whatsapp', formData.whatsapp)
-      .eq('user_id', user.id)
+      .eq('aesthetic_id', aestheticId)
       .maybeSingle();
 
     let error;
@@ -104,7 +105,8 @@ export function Customers() {
           carModel: formData.carModel,
           licensePlate: formData.licensePlate.toUpperCase(),
           vehicleType: formData.vehicleType,
-          user_id: user.id
+          user_id: user.id,
+          aesthetic_id: aestheticId
         }]);
       error = insertError;
     }
