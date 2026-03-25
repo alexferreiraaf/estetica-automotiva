@@ -29,7 +29,7 @@ export function Settings() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const aestheticId = localStorage.getItem('aesthetic_id');
+      const aestheticId = sessionStorage.getItem('aesthetic_id');
       if (!aestheticId) return;
 
       const saved = localStorage.getItem(`store_settings_${aestheticId}`);

@@ -74,7 +74,7 @@ export function Services() {
       durationHours: parseFloat(formData.durationHours),
       iconName: formData.iconName,
       user_id: user?.id,
-      aesthetic_id: localStorage.getItem('aesthetic_id')
+      aesthetic_id: sessionStorage.getItem('aesthetic_id')
     };
 
     // Auto-Heal: Garantir que a estética atual está vinculada ao user_id do autor APENAS se estiver null
@@ -260,7 +260,7 @@ export function Services() {
             </p>
             {!isLoading && dbServices.length === 0 && (
               <p className="text-xs text-text-muted mt-2">
-                Logado como: {localStorage.getItem('aesthetic_id') ? 'Autenticação Local' : 'Não identificado'}
+                Logado como: {sessionStorage.getItem('aesthetic_id') ? 'Autenticação Local' : 'Não identificado'}
               </p>
             )}
             {!isLoading && (
