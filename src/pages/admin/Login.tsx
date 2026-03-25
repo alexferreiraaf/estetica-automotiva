@@ -107,8 +107,8 @@ export function Login() {
         }
 
         localStorage.setItem('admin_auth', 'true');
-        localStorage.setItem('aesthetic_id', aestheticData.id);
-        localStorage.setItem('aesthetic_name', aestheticData.name);
+        sessionStorage.setItem('aesthetic_id', aestheticData.id);
+        sessionStorage.setItem('aesthetic_name', aestheticData.name);
         await updateLastLogin(aestheticData.id);
         navigate('/admin');
         return;
@@ -120,8 +120,8 @@ export function Login() {
       }
 
       localStorage.setItem('admin_auth', 'true');
-      localStorage.setItem('aesthetic_id', aesthetic.id);
-      localStorage.setItem('aesthetic_name', aesthetic.name);
+      sessionStorage.setItem('aesthetic_id', aesthetic.id);
+      sessionStorage.setItem('aesthetic_name', aesthetic.name);
       await updateLastLogin(aesthetic.id);
       navigate('/admin');
     } catch (err) {

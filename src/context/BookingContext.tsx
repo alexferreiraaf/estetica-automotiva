@@ -44,7 +44,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        const aestheticId = localStorage.getItem('aesthetic_id');
+        const aestheticId = sessionStorage.getItem('aesthetic_id');
         if (aestheticId) updateLastLogin(aestheticId);
       }
     });
@@ -53,7 +53,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
-        const aestheticId = localStorage.getItem('aesthetic_id');
+        const aestheticId = sessionStorage.getItem('aesthetic_id');
         if (aestheticId) updateLastLogin(aestheticId);
         // Force refetch on sign in
         fetchBookings(session?.user.id, aestheticId || undefined);
