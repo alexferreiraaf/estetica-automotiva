@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Building2, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { getAesthetics } from '../../data/aesthetics';
 import type { Aesthetic } from '../../data/aesthetics';
 
