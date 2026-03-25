@@ -11,6 +11,7 @@ export function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showActivation, setShowActivation] = useState(false);
   const [error, setError] = useState('');
+  const [availableAesthetics, setAvailableAesthetics] = useState<any[]>([]);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
@@ -54,16 +55,25 @@ export function Login() {
         return;
       }
 
-      // 3. Fetch Aesthetics (Handle multiple)
+      // 3. Fetch Aesthetics for this user
       const { data: aesthetics, error: dbError } = await supabase
         .from('aesthetics')
         .select('*')
         .eq('user_id', user?.id);
       
+      if (dbError) throw dbError;
+
+      if (aesthetics && aesthetics.length > 1) {
+        // Show selection screen
+        setAvailableAesthetics(aesthetics);
+        setIsLoading(false);
+        return;
+      }
+
       const aesthetic = aesthetics && aesthetics.length > 0 ? aesthetics[0] : null;
 
-      if (dbError || !aesthetic) {
-        // Fallback or Auto-Heal
+      if (!aesthetic) {
+        // Fallback for legacy or auto-creation
         const { data: legacyAesthetic } = await supabase
           .from('aesthetics')
           .select('*')
@@ -85,51 +95,35 @@ export function Login() {
             .select()
             .single();
 
-          if (createError) {
-            console.error('Erro ao auto-criar perfil:', createError);
-            setError('Perfil da estética não encontrado e erro ao gerar acesso automático.');
-            setIsLoading(false);
-            return;
-          }
+          if (createError) throw createError;
           aestheticData = newAesthetic;
         } else if (!legacyAesthetic.user_id) {
-          // Vincular user_id se estiver faltando
-          await supabase
-            .from('aesthetics')
-            .update({ user_id: user.id })
-            .eq('id', legacyAesthetic.id);
+          await supabase.from('aesthetics').update({ user_id: user.id }).eq('id', legacyAesthetic.id);
         }
 
-        if (aestheticData.status === 'blocked') {
-          setError('Este acesso foi bloqueado pelo administrador.');
-          setIsLoading(false);
-          return;
-        }
-
-        localStorage.setItem('admin_auth', 'true');
-        sessionStorage.setItem('aesthetic_id', aestheticData.id);
-        sessionStorage.setItem('aesthetic_name', aestheticData.name);
-        await updateLastLogin(aestheticData.id);
-        navigate('/admin');
-        return;
+        handleEnterAesthetic(aestheticData);
+      } else {
+        handleEnterAesthetic(aesthetic);
       }
-
-      if (aesthetic.status === 'blocked') {
-        setError('Sua conta está bloqueada pelo administrador.');
-        return;
-      }
-
-      localStorage.setItem('admin_auth', 'true');
-      sessionStorage.setItem('aesthetic_id', aesthetic.id);
-      sessionStorage.setItem('aesthetic_name', aesthetic.name);
-      await updateLastLogin(aesthetic.id);
-      navigate('/admin');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro no login:', err);
-      setError('Erro ao conectar ao servidor.');
+      setError(err.message || 'Erro ao conectar ao servidor.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEnterAesthetic = async (aesthetic: any) => {
+    if (aesthetic.status === 'blocked') {
+      setError('Este acesso foi bloqueado pelo administrador.');
+      return;
+    }
+
+    localStorage.setItem('admin_auth', 'true');
+    sessionStorage.setItem('aesthetic_id', aesthetic.id);
+    sessionStorage.setItem('aesthetic_name', aesthetic.name);
+    await updateLastLogin(aesthetic.id);
+    navigate('/admin');
   };
 
   const handleActivate = async () => {
@@ -196,85 +190,112 @@ export function Login() {
           <h2 className="text-2xl font-bold text-text-primary text-center mb-2">Acesso Restrito</h2>
           <p className="text-text-secondary text-center mb-8">Área exclusiva para administração</p>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            {error && (
-              <div className={`p-3 rounded-lg flex items-center gap-2 mb-6 ${showActivation ? 'bg-blue-500/10 border border-blue-500/50 text-blue-400' : 'bg-red-500/10 border border-red-500/50 text-red-400'}`}>
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <div className="flex flex-col">
-                  <p className="text-sm">{error}</p>
-                  {showActivation && (
-                    <button
-                      type="button"
-                      onClick={handleActivate}
-                      disabled={isLoading}
-                      className="text-xs font-bold underline mt-1 text-left hover:text-blue-300 transition-colors"
-                    >
-                      {isLoading ? 'Ativando...' : 'Clique aqui para ativar sua conta agora'}
-                    </button>
-                  )}
-                </div>
+          {availableAesthetics.length > 0 ? (
+            <div className="space-y-4">
+              <p className="text-sm font-medium text-text-secondary mb-2">Selecione qual estética deseja gerenciar:</p>
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {availableAesthetics.map((aesthetic) => (
+                  <button
+                    key={aesthetic.id}
+                    onClick={() => handleEnterAesthetic(aesthetic)}
+                    className="w-full p-4 bg-bg-main border border-border-main rounded-xl hover:border-gold hover:bg-gold/5 transition-all flex items-center justify-between group"
+                  >
+                    <div className="text-left">
+                      <p className="font-bold text-text-primary group-hover:text-gold transition-colors">{aesthetic.name}</p>
+                      <p className="text-xs text-text-muted">{aesthetic.owner}</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-gold group-hover:translate-x-1 transition-all" />
+                  </button>
+                ))}
               </div>
-            )}
-            
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-secondary ml-1">E-mail</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="w-5 h-5 text-text-muted" />
+              <button 
+                onClick={() => setAvailableAesthetics([])}
+                className="w-full py-3 text-sm text-text-muted hover:text-text-primary transition-colors mt-4"
+              >
+                Voltar para o login
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-5">
+              {error && (
+                <div className={`p-3 rounded-lg flex items-center gap-2 mb-6 ${showActivation ? 'bg-blue-500/10 border border-blue-500/50 text-blue-400' : 'bg-red-500/10 border border-red-500/50 text-red-400'}`}>
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <div className="flex flex-col">
+                    <p className="text-sm">{error}</p>
+                    {showActivation && (
+                      <button
+                        type="button"
+                        onClick={handleActivate}
+                        disabled={isLoading}
+                        className="text-xs font-bold underline mt-1 text-left hover:text-blue-300 transition-colors"
+                      >
+                        {isLoading ? 'Ativando...' : 'Clique aqui para ativar sua conta agora'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all placeholder:text-text-muted/50"
-                  placeholder="Seu e-mail"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-secondary ml-1">Senha</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-text-muted" />
-                </div>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all placeholder:text-text-muted/50"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-sm pt-2">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" className="rounded border-border-main bg-bg-card text-gold focus:ring-gold" />
-                <span className="text-text-secondary">Lembrar-me</span>
-              </label>
-              <a href="#" className="text-gold hover:text-gold-light transition-colors">
-                Esqueceu a senha?
-              </a>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-gold to-gold-light hover:from-gold-dark hover:to-gold text-black font-bold rounded-xl transition-all flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Entrar no Sistema</span>
-                  <ArrowRight className="w-5 h-5" />
-                </>
               )}
-            </button>
-          </form>
+              
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary ml-1">E-mail</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="w-5 h-5 text-text-muted" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all placeholder:text-text-muted/50"
+                    placeholder="Seu e-mail"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary ml-1">Senha</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="w-5 h-5 text-text-muted" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all placeholder:text-text-muted/50"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm pt-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" className="rounded border-border-main bg-bg-card text-gold focus:ring-gold" />
+                  <span className="text-text-secondary">Lembrar-me</span>
+                </label>
+                <a href="#" className="text-gold hover:text-gold-light transition-colors">
+                  Esqueceu a senha?
+                </a>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-gradient-to-r from-gold to-gold-light hover:from-gold-dark hover:to-gold text-black font-bold rounded-xl transition-all flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Entrar no Sistema</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
         </div>
         
         <div className="bg-bg-main border-tl border-tr border-border-main p-4 text-center">

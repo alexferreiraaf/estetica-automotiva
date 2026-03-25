@@ -40,6 +40,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [aesthetic, setAesthetic] = useState<any | null>(null);
 
   useEffect(() => {
+    // Migration/Continuity: Sync from localStorage to sessionStorage if missing
+    if (!sessionStorage.getItem('aesthetic_id')) {
+      const storedId = localStorage.getItem('aesthetic_id');
+      const storedName = localStorage.getItem('aesthetic_name');
+      if (storedId) sessionStorage.setItem('aesthetic_id', storedId);
+      if (storedName) sessionStorage.setItem('aesthetic_name', storedName);
+    }
+
     // 1. Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
