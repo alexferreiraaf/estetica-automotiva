@@ -5,6 +5,7 @@ import type { Aesthetic } from '../../data/aesthetics';
 
 export function SuperAdminDashboard() {
   const [aesthetics, setAesthetics] = useState<Aesthetic[]>([]);
+  const [customerCount, setCustomerCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -12,6 +13,13 @@ export function SuperAdminDashboard() {
       try {
         const data = await getAesthetics();
         setAesthetics(data);
+        
+        // Fetch total customers count
+        const { count } = await supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true });
+        
+        setCustomerCount(count || 0);
       } catch (error) {
         console.error('Error loading stats:', error);
       } finally {
@@ -28,7 +36,7 @@ export function SuperAdminDashboard() {
     { label: 'Total de Estéticas', value: aesthetics.length, icon: Building2, color: 'text-gold', bg: 'bg-gold/10' },
     { label: 'Clientes Ativos', value: activeCount, icon: ShieldCheck, color: 'text-green-400', bg: 'bg-green-500/10' },
     { label: 'Clientes Bloqueados', value: blockedCount, icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/10' },
-    { label: 'Total de Usuários', value: aesthetics.length * 5, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Total de Clientes', value: customerCount, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
   ];
 
   if (isLoading) {
