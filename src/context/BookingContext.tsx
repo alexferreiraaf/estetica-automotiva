@@ -66,13 +66,20 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Heartbeat: Update last login every 1 minute while active
+    const heartbeat = setInterval(() => {
+      const aestheticId = sessionStorage.getItem('aesthetic_id');
+      if (aestheticId) updateLastLogin(aestheticId);
+    }, 60 * 1000);
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(heartbeat);
     };
   }, []);
 
   useEffect(() => {
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     fetchBookings(user?.id, aestheticId || undefined);
     fetchServices(user?.id, aestheticId || undefined);
 
@@ -100,7 +107,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       .order('createdAt', { ascending: false });
     
     // Prioritize aesthetic_id for isolation
-    const currentAestheticId = aestheticId || localStorage.getItem('aesthetic_id');
+    const currentAestheticId = aestheticId || sessionStorage.getItem('aesthetic_id');
     
     if (currentAestheticId) {
       query = query.eq('aesthetic_id', currentAestheticId);
@@ -122,7 +129,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const fetchServices = async (userId?: string, aestheticId?: string) => {
     let query = supabase.from('services').select('*').order('name');
     
-    const currentAestheticId = aestheticId || localStorage.getItem('aesthetic_id');
+    const currentAestheticId = aestheticId || sessionStorage.getItem('aesthetic_id');
     
     if (currentAestheticId) {
       // Always prioritize aesthetic_id for fetching
@@ -143,7 +150,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const fetchAesthetic = async (userId?: string) => {
     const currentUserId = userId || user?.id;
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     
     if (!currentUserId || !aestheticId) return;
 
@@ -153,6 +160,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', aestheticId)
       .single();
+    
+    if (aestheticData) {
+      updateLastLogin(aestheticId);
+    }
     
     if (error) {
       console.error('Error fetching aesthetic:', error);
@@ -177,7 +188,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
     const optimisticId = crypto.randomUUID();
     const currentUserId = user?.id || (bookingData as any).user_id;
-    const currentAestheticId = localStorage.getItem('aesthetic_id');
+    const currentAestheticId = sessionStorage.getItem('aesthetic_id');
 
     const newBooking: Booking = {
       ...bookingData,
