@@ -57,7 +57,7 @@ export function Customers() {
   const fetchDbCustomers = async () => {
     if (!user) return;
     setIsLoading(true);
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     const { data, error } = await supabase
       .from('customers')
       .select('*')
@@ -75,7 +75,7 @@ export function Customers() {
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     const { data: existing } = await supabase
       .from('customers')
       .select('id')

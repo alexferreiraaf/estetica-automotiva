@@ -41,7 +41,7 @@ export function Services() {
     
     let query = supabase.from('services').select('*').order('name');
     
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     
     if (aestheticId) {
       query = query.eq('aesthetic_id', aestheticId);
@@ -78,7 +78,7 @@ export function Services() {
     };
 
     // Auto-Heal: Garantir que a estética atual está vinculada ao user_id do autor APENAS se estiver null
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     if (aestheticId && user?.id) {
       // Verifica se já tem dono para não sobrescrever (ex: SuperAdmin editando)
       const { data: currentAesthetic } = await supabase

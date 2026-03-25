@@ -68,7 +68,7 @@ export function Settings() {
     e.preventDefault();
     setIsSaving(true);
     
-    const aestheticId = localStorage.getItem('aesthetic_id');
+    const aestheticId = sessionStorage.getItem('aesthetic_id');
     
     if (aestheticId) {
       // Save to localStorage using isolated aesthetic namespace
