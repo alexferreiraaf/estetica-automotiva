@@ -3,6 +3,10 @@ import { supabase } from '../lib/supabase';
 import type { Service } from '../data/services';
 import { updateLastLogin } from '../data/aesthetics';
 
+const normalizePhone = (phone: string) => {
+  return phone.replace(/\D/g, '');
+};
+
 export type BookingStatus = 'Pendente' | 'Confirmado' | 'Em Execução' | 'Concluído';
 
 export interface Booking {
@@ -40,19 +44,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [aesthetic, setAesthetic] = useState<any | null>(null);
 
   useEffect(() => {
-    // Migration/Continuity: Sync from localStorage to sessionStorage if missing
-    if (!sessionStorage.getItem('aesthetic_id')) {
-      const storedId = localStorage.getItem('aesthetic_id');
-      const storedName = localStorage.getItem('aesthetic_name');
-      if (storedId) sessionStorage.setItem('aesthetic_id', storedId);
-      if (storedName) sessionStorage.setItem('aesthetic_name', storedName);
-    }
-
     // 1. Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        const aestheticId = sessionStorage.getItem('aesthetic_id');
+        const aestheticId = localStorage.getItem('aesthetic_id');
         if (aestheticId) updateLastLogin(aestheticId);
       }
     });
@@ -61,7 +57,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
-        const aestheticId = sessionStorage.getItem('aesthetic_id');
+        const aestheticId = localStorage.getItem('aesthetic_id');
         if (aestheticId) updateLastLogin(aestheticId);
         // Force refetch on sign in
         fetchBookings(session?.user.id, aestheticId || undefined);
@@ -74,20 +70,43 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Heartbeat: Update last login every 1 minute while active
-    const heartbeat = setInterval(() => {
-      const aestheticId = sessionStorage.getItem('aesthetic_id');
-      if (aestheticId) updateLastLogin(aestheticId);
-    }, 60 * 1000);
-
     return () => {
       subscription.unsubscribe();
-      clearInterval(heartbeat);
     };
   }, []);
 
+  // Dedicated Heartbeat Effect
   useEffect(() => {
-    const aestheticId = sessionStorage.getItem('aesthetic_id');
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    const isAdminArea = location.pathname.startsWith('/admin');
+    
+    // Only heartbeat if we have a user, an aesthetic ID, and are in admin area
+    if (!user || !aestheticId || !isAdminArea) return;
+
+    // Safety check: ensure this aesthetic belongs to this user (fetched in fetchAesthetic)
+    // If the aesthetic isn't loaded yet or belongs to someone else, we wait or skip
+    if (aesthetic && aesthetic.id === aestheticId && aesthetic.user_id !== user.id) {
+        console.warn('Attempted heartbeat for store not owned by user');
+        return;
+    }
+
+    // 1. Initial immediate update
+    updateLastLogin(aestheticId);
+
+    // 2. Periodic heartbeat every minute
+    const interval = setInterval(() => {
+      const currentId = localStorage.getItem('aesthetic_id');
+      const stillAdmin = window.location.pathname.startsWith('/admin');
+      if (currentId && stillAdmin && user) {
+        updateLastLogin(currentId);
+      }
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [user, location.pathname, aesthetic?.id]); // Also depend on aesthetic data load
+
+  useEffect(() => {
+    const aestheticId = localStorage.getItem('aesthetic_id');
     fetchBookings(user?.id, aestheticId || undefined);
     fetchServices(user?.id, aestheticId || undefined);
 
@@ -115,16 +134,22 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       .order('createdAt', { ascending: false });
     
     // Prioritize aesthetic_id for isolation
-    const currentAestheticId = aestheticId || sessionStorage.getItem('aesthetic_id');
+    const currentAestheticId = aestheticId || localStorage.getItem('aesthetic_id');
     
     if (currentAestheticId) {
       query = query.eq('aesthetic_id', currentAestheticId);
     } else if (userId) {
       query = query.eq('user_id', userId);
     } else {
-      // If no ID, prevent leaks
+      // If no ID, prevent leaks and force selection ONLY in admin area
       const adminAuth = localStorage.getItem('admin_auth');
-      if (adminAuth === 'true') return;
+      const isAdminArea = window.location.pathname.startsWith('/admin');
+      
+      if (isAdminArea && adminAuth === 'true' && !localStorage.getItem('aesthetic_id')) {
+        window.location.href = '/login';
+        return;
+      }
+      return;
     }
 
     const { data, error } = await query;
@@ -137,7 +162,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const fetchServices = async (userId?: string, aestheticId?: string) => {
     let query = supabase.from('services').select('*').order('name');
     
-    const currentAestheticId = aestheticId || sessionStorage.getItem('aesthetic_id');
+    const currentAestheticId = aestheticId || localStorage.getItem('aesthetic_id');
     
     if (currentAestheticId) {
       // Always prioritize aesthetic_id for fetching
@@ -158,7 +183,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const fetchAesthetic = async (userId?: string) => {
     const currentUserId = userId || user?.id;
-    const aestheticId = sessionStorage.getItem('aesthetic_id');
+    const aestheticId = localStorage.getItem('aesthetic_id');
     
     if (!currentUserId || !aestheticId) return;
 
@@ -195,11 +220,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
     const optimisticId = crypto.randomUUID();
-    const currentUserId = user?.id || (bookingData as any).user_id;
-    const currentAestheticId = sessionStorage.getItem('aesthetic_id');
+    const currentUserId = user?.id || (bookingData as any).user_id || aesthetic?.user_id;
+    const currentAestheticId = localStorage.getItem('aesthetic_id');
+    const normalizedWhatsApp = normalizePhone(bookingData.whatsapp);
 
     const newBooking: Booking = {
       ...bookingData,
+      whatsapp: normalizedWhatsApp,
       id: optimisticId,
       user_id: currentUserId,
       aesthetic_id: currentAestheticId,
@@ -209,36 +236,32 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     
     setBookings((prev) => [...prev, newBooking]);
 
-    // Upsert customer with user_id manually to respect tenant isolation
-    if (currentUserId) {
+    // Upsert customer with owner's user_id to ensure visibility in admin panel
+    if (currentAestheticId) {
       const { data: existingCustomer } = await supabase
         .from('customers')
         .select('id')
-        .eq('whatsapp', bookingData.whatsapp)
-        .eq('user_id', currentUserId)
+        .eq('whatsapp', normalizedWhatsApp)
         .eq('aesthetic_id', currentAestheticId)
         .maybeSingle();
+
+      const customerData = {
+        name: bookingData.customerName,
+        whatsapp: normalizedWhatsApp,
+        carModel: bookingData.carModel,
+        licensePlate: bookingData.licensePlate.toUpperCase(),
+        vehicleType: (bookingData as any).vehicleType || 'Carro',
+        user_id: currentUserId,
+        aesthetic_id: currentAestheticId
+      };
 
       if (existingCustomer) {
         await supabase
           .from('customers')
-          .update({
-            name: bookingData.customerName,
-            carModel: bookingData.carModel,
-            licensePlate: bookingData.licensePlate.toUpperCase(),
-            vehicleType: (bookingData as any).vehicleType || 'Carro',
-          })
+          .update(customerData)
           .eq('id', existingCustomer.id);
       } else {
-        await supabase.from('customers').insert([{
-          name: bookingData.customerName,
-          whatsapp: bookingData.whatsapp,
-          carModel: bookingData.carModel,
-          licensePlate: bookingData.licensePlate.toUpperCase(),
-          vehicleType: (bookingData as any).vehicleType || 'Carro',
-          user_id: currentUserId,
-          aesthetic_id: currentAestheticId
-        }]);
+        await supabase.from('customers').insert([customerData]);
       }
     }
 
@@ -252,7 +275,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         date: bookingData.date,
         timeSlot: bookingData.timeSlot,
         customerName: bookingData.customerName,
-        whatsapp: bookingData.whatsapp,
+        whatsapp: normalizedWhatsApp,
         carModel: bookingData.carModel,
         licensePlate: bookingData.licensePlate.toUpperCase(),
         vehicleType: (bookingData as any).vehicleType || 'Carro',

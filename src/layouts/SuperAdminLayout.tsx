@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, LogOut, Users, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { updateLastLogin, setOffline } from '../data/aesthetics';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -13,8 +15,34 @@ export function SuperAdminLayout() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
+  useEffect(() => {
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    if (!aestheticId) return;
+
+    const runUpdate = async () => {
+      const result = await updateLastLogin(aestheticId);
+      if (result?.error) {
+        console.warn('Falha no heartbeat do status online (SuperAdmin).', result.error);
+      }
+    };
+
+    // Update immediately on mount
+    runUpdate();
+
+    // Set up heartbeat every 4 minutes
+    const interval = setInterval(runUpdate, 4 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogout = async () => {
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    if (aestheticId) {
+      await setOffline(aestheticId);
+    }
     localStorage.removeItem('superadmin_auth');
+    localStorage.removeItem('aesthetic_id');
+    localStorage.removeItem('aesthetic_name');
     await import('../lib/supabase').then(({ supabase }) => supabase.auth.signOut());
     navigate('/login');
   };

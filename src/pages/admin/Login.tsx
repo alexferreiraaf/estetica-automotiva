@@ -51,6 +51,8 @@ export function Login() {
       // 2. Check Role
       if (user?.email === 'super@plataforma.com') {
         localStorage.setItem('superadmin_auth', 'true');
+        localStorage.removeItem('aesthetic_id');
+        localStorage.removeItem('aesthetic_name');
         navigate('/superadmin');
         return;
       }
@@ -120,8 +122,8 @@ export function Login() {
     }
 
     localStorage.setItem('admin_auth', 'true');
-    sessionStorage.setItem('aesthetic_id', aesthetic.id);
-    sessionStorage.setItem('aesthetic_name', aesthetic.name);
+    localStorage.setItem('aesthetic_id', aesthetic.id);
+    localStorage.setItem('aesthetic_name', aesthetic.name);
     await updateLastLogin(aesthetic.id);
     navigate('/admin');
   };

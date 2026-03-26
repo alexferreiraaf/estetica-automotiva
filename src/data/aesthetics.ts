@@ -102,10 +102,32 @@ export const deleteAesthetic = async (id: string) => {
 export const updateLastLogin = async (id: string) => {
   const { error } = await supabase
     .from('aesthetics')
-    .update({ last_login: new Date().toISOString() })
+    .update({ 
+      last_login: new Date().toISOString()
+    })
     .eq('id', id);
 
   if (error) {
-    console.error('Error updating last login:', error);
+    console.error('Erro ao atualizar last_login:', error);
+    // Não lançamos erro para não quebrar a navegação, mas logamos
+    return { error };
   }
+  return { success: true };
+};
+export const setOffline = async (id: string) => {
+  // Define o status para 10 minutos atrás para forçar o status "Offline" imediato no UI
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  
+  const { error } = await supabase
+    .from('aesthetics')
+    .update({ 
+      last_login: tenMinutesAgo
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Erro ao definir status offline:', error);
+    return { error };
+  }
+  return { success: true };
 };

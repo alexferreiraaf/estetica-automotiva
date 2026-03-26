@@ -19,6 +19,10 @@ interface CustomerRecord {
 export function Customers() {
   const { bookings } = useBooking();
   const [searchTerm, setSearchTerm] = useState('');
+
+  const normalizePhone = (phone: string) => {
+    return phone.replace(/\D/g, '');
+  };
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dbCustomers, setDbCustomers] = useState<CustomerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +61,7 @@ export function Customers() {
   const fetchDbCustomers = async () => {
     if (!user) return;
     setIsLoading(true);
-    const aestheticId = sessionStorage.getItem('aesthetic_id');
+    const aestheticId = localStorage.getItem('aesthetic_id');
     const { data, error } = await supabase
       .from('customers')
       .select('*')
@@ -75,11 +79,12 @@ export function Customers() {
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const aestheticId = sessionStorage.getItem('aesthetic_id');
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    const normalizedWhatsApp = normalizePhone(formData.whatsapp);
     const { data: existing } = await supabase
       .from('customers')
       .select('id')
-      .eq('whatsapp', formData.whatsapp)
+      .eq('whatsapp', normalizedWhatsApp)
       .eq('aesthetic_id', aestheticId)
       .maybeSingle();
 
@@ -101,7 +106,7 @@ export function Customers() {
         .from('customers')
         .insert([{
           name: formData.name,
-          whatsapp: formData.whatsapp,
+          whatsapp: normalizedWhatsApp,
           carModel: formData.carModel,
           licensePlate: formData.licensePlate.toUpperCase(),
           vehicleType: formData.vehicleType,

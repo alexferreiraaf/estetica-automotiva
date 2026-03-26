@@ -44,8 +44,8 @@ const SuperAdminProtectedRoute = ({ children }: { children: React.ReactNode }) =
 function App() {
   return (
     <ThemeProvider>
-      <BookingProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <BookingProvider>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             
@@ -80,8 +80,8 @@ function App() {
                <Route path="*" element={<Navigate to="/superadmin" replace />} />
             </Route>
           </Routes>
-        </BrowserRouter>
-      </BookingProvider>
+        </BookingProvider>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }

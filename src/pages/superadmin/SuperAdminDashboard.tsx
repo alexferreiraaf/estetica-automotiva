@@ -35,9 +35,9 @@ export function SuperAdminDashboard() {
 
   const stats = [
     { label: 'Total de Estéticas', value: aesthetics.length, icon: Building2, color: 'text-gold', bg: 'bg-gold/10' },
-    { label: 'Clientes Ativos', value: activeCount, icon: ShieldCheck, color: 'text-green-400', bg: 'bg-green-500/10' },
-    { label: 'Clientes Bloqueados', value: blockedCount, icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/10' },
-    { label: 'Total de Clientes', value: customerCount, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Estéticas Ativas', value: activeCount, icon: ShieldCheck, color: 'text-green-400', bg: 'bg-green-500/10' },
+    { label: 'Estéticas Bloqueadas', value: blockedCount, icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/10' },
+    { label: 'Total de Clientes (Agendamentos)', value: customerCount, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
   ];
 
   if (isLoading) {

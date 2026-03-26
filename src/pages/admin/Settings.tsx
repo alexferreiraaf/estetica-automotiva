@@ -29,7 +29,7 @@ export function Settings() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const aestheticId = sessionStorage.getItem('aesthetic_id');
+      const aestheticId = localStorage.getItem('aesthetic_id');
       if (!aestheticId) return;
 
       const saved = localStorage.getItem(`store_settings_${aestheticId}`);
@@ -68,7 +68,7 @@ export function Settings() {
     e.preventDefault();
     setIsSaving(true);
     
-    const aestheticId = sessionStorage.getItem('aesthetic_id');
+    const aestheticId = localStorage.getItem('aesthetic_id');
     
     if (aestheticId) {
       // Save to localStorage using isolated aesthetic namespace

@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut, Settings as SettingsIcon, Users, Briefcase, ExternalLink, Share2, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { updateLastLogin, setOffline } from '../data/aesthetics';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -13,16 +15,43 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
+  useEffect(() => {
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    if (!aestheticId) {
+      console.log('Sem aestheticId no localStorage, heartbeat ignorado.');
+      return;
+    }
+
+    const runUpdate = async () => {
+      const result = await updateLastLogin(aestheticId);
+      if (result?.error) {
+        console.warn('Falha no heartbeat do status online. Pode ser necessário ajustar o RLS no Supabase.', result.error);
+      }
+    };
+
+    // Update immediately on mount
+    runUpdate();
+
+    // Set up heartbeat every 4 minutes (to stay within the 5-min 'Online agora' window)
+    const interval = setInterval(runUpdate, 4 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogout = async () => {
+    const aestheticId = localStorage.getItem('aesthetic_id');
+    if (aestheticId) {
+      await setOffline(aestheticId);
+    }
     localStorage.removeItem('admin_auth');
-    sessionStorage.removeItem('aesthetic_id');
-    sessionStorage.removeItem('aesthetic_name');
+    localStorage.removeItem('aesthetic_id');
+    localStorage.removeItem('aesthetic_name');
     await import('../lib/supabase').then(({ supabase }) => supabase.auth.signOut());
     navigate('/login');
   };
 
   const handleShare = async () => {
-    const aestheticId = sessionStorage.getItem('aesthetic_id');
+    const aestheticId = localStorage.getItem('aesthetic_id');
     const url = `${window.location.origin}/client/${aestheticId}`;
     if (navigator.share) {
       try {
@@ -93,7 +122,7 @@ export function AdminLayout() {
 
         <div className="p-4 space-y-2 border-t border-border-main">
           <Link 
-            to={`/client/${sessionStorage.getItem('aesthetic_id')}`}
+            to={`/client/${localStorage.getItem('aesthetic_id')}`}
             target="_blank"
             className="w-full flex items-center px-4 py-3 text-text-secondary hover:text-gold rounded-lg hover:bg-gold/5 transition-colors"
           >

@@ -375,6 +375,7 @@ export function Aesthetics() {
   const [reportAesthetic, setReportAesthetic] = useState<Aesthetic | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [now, setNow] = useState(new Date());
   
   // Form State
   const [formData, setFormData] = useState({
@@ -388,6 +389,39 @@ export function Aesthetics() {
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh data every minute
+    const dataInterval = setInterval(loadData, 60 * 1000);
+    
+    // Force re-render of relative times every 30 seconds
+    const timeInterval = setInterval(() => setNow(new Date()), 30 * 1000);
+
+    // Subscribe to realtime updates for aesthetics table
+    const channel = supabase
+      .channel('aesthetics_updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'aesthetics' },
+        (payload) => {
+          setAesthetics(prev => prev.map(a => 
+            a.id === payload.new.id 
+              ? { 
+                  ...a, 
+                  lastLogin: payload.new.last_login, // Map DB snake_case to UI camelCase
+                  status: payload.new.status,
+                  name: payload.new.name
+                } 
+              : a
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(timeInterval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadData = async () => {
@@ -517,6 +551,7 @@ export function Aesthetics() {
           <p className="text-text-secondary mt-1">Gerencie as empresas que utilizam sua plataforma</p>
         </div>
         
+        <div className="hidden">{now.getTime()}</div>
         <button 
           onClick={() => setIsModalOpen(true)}
           className="bg-gradient-to-r from-gold to-gold-light text-black font-bold py-3 px-6 rounded-xl hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] transition-all duration-300 flex items-center justify-center"
