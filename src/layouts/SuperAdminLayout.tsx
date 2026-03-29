@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, LogOut, Users, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, LogOut, Users, Sun, Moon, Menu, X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { updateLastLogin, setOffline } from '../data/aesthetics';
 import clsx from 'clsx';
@@ -14,6 +14,7 @@ export function SuperAdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const aestheticId = localStorage.getItem('aesthetic_id');
@@ -109,6 +110,13 @@ export function SuperAdminLayout() {
         {/* Mobile Header */}
         <header className="md:hidden bg-bg-surface border-b border-border-main p-4 flex items-center justify-between">
            <div className="flex items-center space-x-2">
+             <button
+               onClick={() => setIsMobileMenuOpen(true)}
+               className="p-2 -ml-2 rounded-lg text-text-primary hover:bg-bg-card transition-colors"
+               aria-label="Abrir menu"
+             >
+               <Menu className="w-6 h-6" />
+             </button>
              <div className="w-8 h-8 rounded bg-gradient-to-tr from-gold to-gold-light flex items-center justify-center text-black font-bold text-xs">
                SA
              </div>
@@ -122,6 +130,67 @@ export function SuperAdminLayout() {
               {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
         </header>
+
+        {/* Mobile Menu Drawer */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 z-50 flex">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            {/* Drawer */}
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-bg-surface border-r border-border-main text-text-primary h-full shadow-2xl animate-in slide-in-from-left duration-300">
+              <div className="p-4 border-b border-border-main flex items-center justify-between">
+                 <Link to="/superadmin" className="flex items-center space-x-2" onClick={() => setIsMobileMenuOpen(false)}>
+                   <div className="w-8 h-8 rounded bg-gradient-to-tr from-gold to-gold-light flex items-center justify-center text-black font-bold text-xs">
+                     SUPER
+                   </div>
+                   <span className="font-bold text-lg">Plataforma</span>
+                 </Link>
+                 <button
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className="p-2 -mr-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
+                 >
+                   <X className="w-6 h-6" />
+                 </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <nav className="p-4 space-y-2">
+                   {navItems.map((item) => {
+                     const isActive = location.pathname === item.path;
+                     return (
+                       <Link 
+                         key={item.path} 
+                         to={item.path}
+                         onClick={() => setIsMobileMenuOpen(false)}
+                         className={cn(
+                           "flex items-center px-4 py-3 rounded-lg font-medium transition-colors",
+                           isActive 
+                             ? "bg-gold/10 text-gold" 
+                             : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                         )}
+                       >
+                         <item.icon className="w-5 h-5 mr-3" />
+                         {item.label}
+                       </Link>
+                     )
+                   })}
+                </nav>
+              </div>
+
+              <div className="p-4 space-y-2 border-t border-border-main">
+                <button 
+                  onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                  className="w-full flex items-center px-4 py-3 text-text-secondary hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors border-t border-border-main mt-2 pt-4"
+                >
+                  <LogOut className="w-5 h-5 mr-3" /> Sair
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <Outlet />
