@@ -21,6 +21,8 @@ export interface Booking {
   carModel: string;
   licensePlate: string;
   vehicleType: string;
+  hasDelivery?: boolean;
+  deliveryAddress?: string;
   status: BookingStatus;
   createdAt: string;
 }
@@ -28,7 +30,7 @@ export interface Booking {
 interface BookingContextType {
   bookings: Booking[];
   services: Service[];
-  addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'>) => Promise<void>;
+  addBooking: (booking: Omit<Booking, 'id' | 'status' | 'createdAt'> & { status?: BookingStatus }) => Promise<void>;
   updateBookingStatus: (id: string, status: BookingStatus) => Promise<void>;
   deleteBooking: (id: string) => Promise<void>;
   getOccupiedSlots: (date: string) => string[];
@@ -218,11 +220,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'>) => {
+  const addBooking = async (bookingData: Omit<Booking, 'id' | 'status' | 'createdAt'> & { status?: BookingStatus }) => {
     const optimisticId = crypto.randomUUID();
     const currentUserId = user?.id || (bookingData as any).user_id || aesthetic?.user_id;
     const currentAestheticId = localStorage.getItem('aesthetic_id');
-    const normalizedWhatsApp = normalizePhone(bookingData.whatsapp);
+    const normalizedWhatsApp = normalizePhone(bookingData.whatsapp || '');
+    const initialStatus = bookingData.status || 'Pendente';
 
     const newBooking: Booking = {
       ...bookingData,
@@ -230,7 +233,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       id: optimisticId,
       user_id: currentUserId,
       aesthetic_id: currentAestheticId,
-      status: 'Pendente',
+      status: initialStatus,
       createdAt: new Date().toISOString()
     };
     
@@ -279,7 +282,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         carModel: bookingData.carModel,
         licensePlate: bookingData.licensePlate.toUpperCase(),
         vehicleType: (bookingData as any).vehicleType || 'Carro',
-        status: 'Pendente'
+        hasDelivery: bookingData.hasDelivery ?? false,
+        deliveryAddress: bookingData.deliveryAddress || null,
+        status: initialStatus
       }]);
 
     if (error) {

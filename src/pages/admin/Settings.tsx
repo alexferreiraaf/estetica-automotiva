@@ -1,26 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { Save, Building2, MapPin, Clock, CheckCircle2, Car, Truck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-interface StoreSettings {
+export interface StoreSettings {
   companyName: string;
   address: string;
   whatsapp: string;
+  acceptsCars: boolean;
+  acceptsMotos: boolean;
+  offersDelivery: boolean;
   operatingHours: {
     [key: string]: string;
   };
 }
 
-const defaultSettings: StoreSettings = {
+export const defaultSettings: StoreSettings = {
   companyName: 'Auto Aesthetics',
   address: 'Rua das Estéticas, 123 - Centro',
   whatsapp: '5511999999999',
+  acceptsCars: true,
+  acceptsMotos: true,
+  offersDelivery: true,
   operatingHours: {
     'Segunda - Sexta': '08:00 - 18:00',
     'Sábado': '08:00 - 13:00',
     'Domingo': 'Fechado',
   }
 };
+
+export function getStoreSettings(aestheticId?: string | null): StoreSettings {
+  if (!aestheticId) return defaultSettings;
+  const saved = localStorage.getItem(`store_settings_${aestheticId}`);
+  if (saved) {
+    try {
+      return { ...defaultSettings, ...JSON.parse(saved) };
+    } catch (e) {
+      return defaultSettings;
+    }
+  }
+  return defaultSettings;
+}
 
 export function Settings() {
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
@@ -159,6 +178,100 @@ export function Settings() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Vehicle Types and Services Settings */}
+        <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden">
+          <div className="p-6 border-b border-border-main bg-bg-main/50">
+            <h2 className="text-lg font-bold text-text-primary flex items-center">
+              <Car className="w-5 h-5 mr-2 text-gold" />
+              Tipos de Veículos e Serviços Oferecidos
+            </h2>
+            <p className="text-xs text-text-secondary mt-1">
+              Escolha os tipos de veículos que sua estética atende e se oferece o serviço Leva e Traz.
+            </p>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Accepts Cars */}
+            <div 
+              onClick={() => setSettings(prev => ({ ...prev, acceptsCars: !prev.acceptsCars }))}
+              className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                settings.acceptsCars 
+                  ? 'bg-neon-blue/10 border-neon-blue text-text-primary' 
+                  : 'bg-bg-main border-border-main text-text-muted opacity-60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-bg-card flex items-center justify-center">
+                  <Car className="w-5 h-5 text-neon-blue" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Atender Carros</p>
+                  <p className="text-xs text-text-secondary">{settings.acceptsCars ? 'Habilitado' : 'Desabilitado'}</p>
+                </div>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={settings.acceptsCars} 
+                onChange={() => {}} 
+                className="w-5 h-5 accent-neon-blue cursor-pointer"
+              />
+            </div>
+
+            {/* Accepts Motos */}
+            <div 
+              onClick={() => setSettings(prev => ({ ...prev, acceptsMotos: !prev.acceptsMotos }))}
+              className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                settings.acceptsMotos 
+                  ? 'bg-neon-blue/10 border-neon-blue text-text-primary' 
+                  : 'bg-bg-main border-border-main text-text-muted opacity-60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-bg-card flex items-center justify-center">
+                  <span className="text-lg">🏍️</span>
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Atender Motos</p>
+                  <p className="text-xs text-text-secondary">{settings.acceptsMotos ? 'Habilitado' : 'Desabilitado'}</p>
+                </div>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={settings.acceptsMotos} 
+                onChange={() => {}} 
+                className="w-5 h-5 accent-neon-blue cursor-pointer"
+              />
+            </div>
+
+            {/* Offers Delivery */}
+            <div 
+              onClick={() => setSettings(prev => ({ ...prev, offersDelivery: !prev.offersDelivery }))}
+              className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                settings.offersDelivery 
+                  ? 'bg-gold/10 border-gold text-text-primary' 
+                  : 'bg-bg-main border-border-main text-text-muted opacity-60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-bg-card flex items-center justify-center">
+                  <Truck className="w-5 h-5 text-gold" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Serviço Leva e Traz</p>
+                  <p className="text-xs text-text-secondary">{settings.offersDelivery ? 'Habilitado' : 'Desabilitado'}</p>
+                </div>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={settings.offersDelivery} 
+                onChange={() => {}} 
+                className="w-5 h-5 accent-gold cursor-pointer"
+              />
+            </div>
+
           </div>
         </div>
 

@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Service } from '../../data/services';
 import { useBooking } from '../../context/BookingContext';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle2, User, Car } from 'lucide-react';
+import { ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle2, User, Car, Truck, MapPin, Search } from 'lucide-react';
+import { getStoreSettings } from '../admin/Settings';
 import { format, addDays, startOfToday, isSunday, isPast, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { twMerge } from 'tailwind-merge';
@@ -17,6 +18,7 @@ export function Wizard() {
   const { aestheticId, serviceId } = useParams();
   const navigate = useNavigate();
   const { addBooking, getOccupiedSlots } = useBooking();
+  const storeSettings = useMemo(() => getStoreSettings(aestheticId), [aestheticId]);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const nextStepButtonRef = useRef<HTMLButtonElement>(null);
@@ -64,13 +66,68 @@ export function Wizard() {
   }, [serviceId, aestheticId]);
   
   // Form State
+  const initialVehicleType = storeSettings.acceptsCars ? 'Carro' : (storeSettings.acceptsMotos ? 'Moto' : 'Carro');
+
   const [formData, setFormData] = useState({
     customerName: '',
     whatsapp: '',
     carModel: '',
     licensePlate: '',
-    vehicleType: 'Carro'
+    vehicleType: initialVehicleType
   });
+
+  const [deliveryOption, setDeliveryOption] = useState<'self' | 'delivery'>('self');
+  const [addressFields, setAddressFields] = useState({
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    uf: ''
+  });
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState('');
+
+  const formatCep = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 8);
+    if (digits.length > 5) {
+      return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    }
+    return digits;
+  };
+
+  const handleSearchCep = async (cepValue: string) => {
+    const cleanCep = cepValue.replace(/\D/g, '');
+    if (cleanCep.length !== 8) {
+      setCepError('Digite um CEP válido de 8 dígitos.');
+      return;
+    }
+
+    setCepLoading(true);
+    setCepError('');
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setCepError('CEP não encontrado.');
+      } else {
+        setAddressFields(prev => ({
+          ...prev,
+          cep: formatCep(cleanCep),
+          street: data.logradouro || '',
+          neighborhood: data.bairro || '',
+          city: data.localidade || '',
+          uf: data.uf || ''
+        }));
+      }
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err);
+      setCepError('Falha ao consultar o CEP.');
+    } finally {
+      setCepLoading(false);
+    }
+  };
 
   const formatWhatsApp = (value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -128,11 +185,18 @@ export function Wizard() {
     e.preventDefault();
     if (!selectedDate || !selectedTimeSlot || !service) return;
     
+    let finalAddress = '';
+    if (deliveryOption === 'delivery') {
+      finalAddress = `${addressFields.street}, ${addressFields.number}${addressFields.complement ? ` (${addressFields.complement})` : ''} - ${addressFields.neighborhood}, ${addressFields.city}/${addressFields.uf}${addressFields.cep ? ` - CEP: ${addressFields.cep}` : ''}`;
+    }
+
     addBooking({
       serviceId: service.id,
       user_id: (service as any).user_id,
       date: format(selectedDate, 'yyyy-MM-dd'),
       timeSlot: selectedTimeSlot,
+      hasDelivery: deliveryOption === 'delivery',
+      deliveryAddress: deliveryOption === 'delivery' ? finalAddress : undefined,
       ...formData
     });
     
@@ -316,34 +380,50 @@ export function Wizard() {
 
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Tipo de Veículo</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    type="button"
-                    onClick={() => setFormData({...formData, vehicleType: 'Carro'})}
-                    className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
-                      formData.vehicleType === 'Carro' 
-                        ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
-                        : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
-                    }`}
-                  >
-                    <Car className="w-5 h-5 mr-2" />
-                    Carro
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setFormData({...formData, vehicleType: 'Moto'})}
-                    className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
-                      formData.vehicleType === 'Moto' 
-                        ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
-                        : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
-                    }`}
-                  >
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
-                    </svg>
-                    Moto
-                  </button>
-                </div>
+                {storeSettings.acceptsCars && storeSettings.acceptsMotos ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, vehicleType: 'Carro'})}
+                      className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
+                        formData.vehicleType === 'Carro' 
+                          ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
+                          : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
+                      }`}
+                    >
+                      <Car className="w-5 h-5 mr-2" />
+                      Carro
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, vehicleType: 'Moto'})}
+                      className={`py-3 rounded-lg border flex items-center justify-center transition-all ${
+                        formData.vehicleType === 'Moto' 
+                          ? 'bg-neon-blue/10 border-neon-blue text-neon-blue' 
+                          : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
+                      }`}
+                    >
+                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+                      </svg>
+                      Moto
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-bg-main border border-border-main rounded-xl text-sm font-bold text-neon-blue flex items-center gap-2">
+                    {storeSettings.acceptsCars ? (
+                      <>
+                        <Car className="w-5 h-5" />
+                        Atendimento exclusivo para Carros
+                      </>
+                    ) : (
+                      <>
+                        <span>🏍️</span>
+                        Atendimento exclusivo para Motos
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
              
              <div className="grid grid-cols-2 gap-4">
@@ -370,6 +450,183 @@ export function Wizard() {
                  />
                </div>
              </div>
+
+              {/* Leva e Traz Selection */}
+              {storeSettings.offersDelivery && (
+                <div className="pt-2 border-t border-border-main">
+                  <label className="block text-sm font-bold text-text-primary mb-3">
+                    Modalidade de Atendimento
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                 <button 
+                   type="button"
+                   onClick={() => setDeliveryOption('self')}
+                   className={`p-4 rounded-xl border flex items-center justify-between text-left transition-all ${
+                     deliveryOption === 'self' 
+                       ? 'bg-neon-blue/10 border-neon-blue text-neon-blue ring-1 ring-neon-blue' 
+                       : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
+                   }`}
+                 >
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-lg bg-bg-card flex items-center justify-center shrink-0">
+                       <Car className="w-5 h-5" />
+                     </div>
+                     <div>
+                       <p className="font-bold text-sm text-text-primary">Eu Entrego e Busco</p>
+                       <p className="text-xs text-text-muted">Vou levar até a estética</p>
+                     </div>
+                   </div>
+                 </button>
+
+                 <button 
+                   type="button"
+                   onClick={() => setDeliveryOption('delivery')}
+                   className={`p-4 rounded-xl border flex items-center justify-between text-left transition-all ${
+                     deliveryOption === 'delivery' 
+                       ? 'bg-gold/10 border-gold text-gold ring-1 ring-gold' 
+                       : 'bg-bg-main border-border-main text-text-muted hover:border-text-secondary'
+                   }`}
+                 >
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-lg bg-bg-card flex items-center justify-center shrink-0">
+                       <Truck className="w-5 h-5 text-gold" />
+                     </div>
+                     <div>
+                       <p className="font-bold text-sm text-text-primary">Serviço Leva e Traz</p>
+                       <p className="text-xs text-gold font-medium">Buscar e entregar no meu endereço</p>
+                     </div>
+                   </div>
+                 </button>
+               </div>
+
+               {deliveryOption === 'delivery' && (
+                 <div className="mt-6 p-5 bg-bg-surface/50 border border-border-main rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                   
+                   {/* CEP Input */}
+                   <div>
+                     <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                       CEP
+                     </label>
+                     <div className="relative">
+                       <input
+                         type="text"
+                         value={addressFields.cep}
+                         onChange={(e) => {
+                           const formatted = formatCep(e.target.value);
+                           setAddressFields(prev => ({ ...prev, cep: formatted }));
+                           if (formatted.replace(/\D/g, '').length === 8) {
+                             handleSearchCep(formatted);
+                           }
+                         }}
+                         placeholder="Digite o CEP para buscar"
+                         maxLength={9}
+                         className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors pr-10"
+                       />
+                       {cepLoading && (
+                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                           <span className="w-4 h-4 border-2 border-gold/30 border-t-gold rounded-full animate-spin block"></span>
+                         </div>
+                       )}
+                     </div>
+                     {cepError && <p className="text-xs text-red-400 mt-1 font-medium">{cepError}</p>}
+                   </div>
+
+                   {/* Rua */}
+                   <div>
+                     <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                       Rua
+                     </label>
+                     <input
+                       required
+                       type="text"
+                       value={addressFields.street}
+                       onChange={(e) => setAddressFields({ ...addressFields, street: e.target.value })}
+                       placeholder="Rua, Avenida, etc."
+                       className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors"
+                     />
+                   </div>
+
+                   {/* Número e Complemento */}
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div>
+                       <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                         Número *
+                       </label>
+                       <input
+                         required
+                         type="text"
+                         value={addressFields.number}
+                         onChange={(e) => setAddressFields({ ...addressFields, number: e.target.value })}
+                         placeholder="Ex: 123"
+                         className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors"
+                       />
+                     </div>
+
+                     <div>
+                       <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                         Complemento
+                       </label>
+                       <input
+                         type="text"
+                         value={addressFields.complement}
+                         onChange={(e) => setAddressFields({ ...addressFields, complement: e.target.value })}
+                         placeholder="Apto, Bloco"
+                         className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors"
+                       />
+                     </div>
+                   </div>
+
+                   {/* Bairro */}
+                   <div>
+                     <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                       Bairro
+                     </label>
+                     <input
+                       required
+                       type="text"
+                       value={addressFields.neighborhood}
+                       onChange={(e) => setAddressFields({ ...addressFields, neighborhood: e.target.value })}
+                       placeholder="Bairro"
+                       className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors"
+                     />
+                   </div>
+
+                   {/* Cidade e UF */}
+                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                     <div className="col-span-2 sm:col-span-3">
+                       <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                         Cidade
+                       </label>
+                       <input
+                         required
+                         type="text"
+                         value={addressFields.city}
+                         onChange={(e) => setAddressFields({ ...addressFields, city: e.target.value })}
+                         placeholder="Cidade"
+                         className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors"
+                       />
+                     </div>
+
+                     <div className="col-span-1">
+                       <label className="block text-xs font-bold text-text-primary mb-1.5 uppercase tracking-wider">
+                         UF
+                       </label>
+                       <input
+                         required
+                         type="text"
+                         maxLength={2}
+                         value={addressFields.uf}
+                         onChange={(e) => setAddressFields({ ...addressFields, uf: e.target.value.toUpperCase() })}
+                         placeholder="SP"
+                         className="w-full bg-bg-main border border-border-main rounded-xl p-3 text-text-primary text-sm focus:outline-none focus:border-gold transition-colors uppercase text-center"
+                       />
+                     </div>
+                   </div>
+
+                 </div>
+               )}
+             </div>
+             )}
           </div>
 
           <div className="mt-8">
@@ -432,7 +689,12 @@ export function Wizard() {
              <button 
                 onClick={() => {
                   const dataFormatada = selectedDate ? format(selectedDate, "dd/MM/yyyy") : '';
-                  const mensagem = `Olá! Acabei de realizar um agendamento pelo site.\n\n*Detalhes do Agendamento:*\n🚗 *Serviço:* ${service.name}\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${selectedTimeSlot}\n👤 *Nome:* ${formData.customerName}\n🛵 *Duração:* ${service.durationHours}h\n🚘 *Veículo:* ${formData.vehicleType} - ${formData.carModel} (${formData.licensePlate})\n\nAguardo a confirmação!`;
+                  const finalAddress = `${addressFields.street}, ${addressFields.number}${addressFields.complement ? ` (${addressFields.complement})` : ''} - ${addressFields.neighborhood}, ${addressFields.city}/${addressFields.uf}`;
+                  const infoLevaETraz = deliveryOption === 'delivery'
+                    ? `\n🚚 *Serviço Leva e Traz:* Sim\n📍 *Endereço:* ${finalAddress}`
+                    : `\n🏢 *Modalidade:* Cliente leva e busca na estética`;
+
+                  const mensagem = `Olá! Acabei de realizar um agendamento pelo site.\n\n*Detalhes do Agendamento:*\n🚗 *Serviço:* ${service.name}\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${selectedTimeSlot}\n👤 *Nome:* ${formData.customerName}\n🛵 *Duração:* ${service.durationHours}h\n🚘 *Veículo:* ${formData.vehicleType} - ${formData.carModel} (${formData.licensePlate})${infoLevaETraz}\n\nAguardo a confirmação!`;
                   
                   const numeroLoja = aestheticPhone.replace(/\D/g, ''); 
                   const url = `https://wa.me/${numeroLoja}?text=${encodeURIComponent(mensagem)}`;

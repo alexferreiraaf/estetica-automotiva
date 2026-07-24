@@ -3,7 +3,7 @@ import { useBooking } from '../../context/BookingContext';
 import type { BookingStatus, Booking } from '../../context/BookingContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Truck, MapPin } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -67,6 +67,18 @@ export function BookingsList() {
                                     {b.carModel} • {b.licensePlate}
                                   </p>
                                   <p className="text-xs text-text-muted">{b.whatsapp}</p>
+                                  {b.hasDelivery ? (
+                                    <div className="mt-1.5 flex items-center text-xs text-gold gap-1 bg-gold/10 border border-gold/20 px-2 py-0.5 rounded-md w-fit">
+                                      <Truck className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="font-bold">Leva e Traz:</span>
+                                      <span className="text-text-secondary truncate max-w-[180px]" title={b.deliveryAddress}>{b.deliveryAddress || 'Endereço informado'}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="mt-1 flex items-center text-[11px] text-text-muted gap-1">
+                                      <MapPin className="w-3 h-3 shrink-0" />
+                                      <span>Entrega no Local</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                            </td>

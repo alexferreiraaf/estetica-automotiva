@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut, Settings as SettingsIcon, Users, Briefcase, ExternalLink, Share2, Sun, Moon, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, ListTodo, LogOut, Settings as SettingsIcon, Users, Briefcase, ExternalLink, Share2, Sun, Moon, Menu, X, PlusCircle } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { QuickBookingModal } from '../components/QuickBookingModal';
 import { updateLastLogin, setOffline } from '../data/aesthetics';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -15,6 +16,7 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
 
   useEffect(() => {
     const aestheticId = localStorage.getItem('aesthetic_id');
@@ -98,6 +100,16 @@ export function AdminLayout() {
             >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
+        </div>
+
+        <div className="p-4 border-b border-border-main">
+          <button 
+            onClick={() => setIsQuickBookingOpen(true)}
+            className="w-full bg-gradient-to-r from-neon-blue to-neon-blue-dark text-black font-extrabold py-3 px-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-md cursor-pointer"
+          >
+            <PlusCircle className="w-5 h-5" />
+            <span>Novo Agendamento</span>
+          </button>
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
@@ -195,6 +207,16 @@ export function AdminLayout() {
                  </button>
               </div>
 
+              <div className="p-4 border-b border-border-main">
+                <button 
+                  onClick={() => { setIsQuickBookingOpen(true); setIsMobileMenuOpen(false); }}
+                  className="w-full bg-gradient-to-r from-neon-blue to-neon-blue-dark text-black font-extrabold py-3 px-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all duration-300 flex items-center justify-center gap-2 text-sm shadow-md"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  <span>Novo Agendamento</span>
+                </button>
+              </div>
+
               <div className="flex-1 overflow-y-auto">
                 <nav className="p-4 space-y-2">
                    {navItems.map((item) => {
@@ -249,6 +271,12 @@ export function AdminLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Quick Booking Modal available everywhere in Admin */}
+      <QuickBookingModal 
+        isOpen={isQuickBookingOpen}
+        onClose={() => setIsQuickBookingOpen(false)}
+      />
     </div>
   );
 }
