@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Service } from '../../data/services';
 import { useBooking } from '../../context/BookingContext';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle2, User, Car, Truck, MapPin, Search } from 'lucide-react';
+import { ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle2, User, Car, Truck } from 'lucide-react';
 import { getStoreSettings } from '../admin/Settings';
 import { format, addDays, startOfToday, isSunday, isPast, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

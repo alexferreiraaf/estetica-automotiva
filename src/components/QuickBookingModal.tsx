@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useBooking, type BookingStatus } from '../context/BookingContext';
-import { X, Calendar, Clock, User, Car, CheckCircle2, PlusCircle, Truck, MapPin, Search } from 'lucide-react';
+import { X, Calendar, Clock, User, Car, CheckCircle2, PlusCircle, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import { getStoreSettings } from '../pages/admin/Settings';
 
