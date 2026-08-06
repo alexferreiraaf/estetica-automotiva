@@ -494,28 +494,23 @@ export function Aesthetics() {
         let authUserId = null;
 
         if (!skipAuth) {
+          const cleanEmail = formData.email.trim().toLowerCase();
           const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: formData.email,
+            email: cleanEmail,
             password: formData.password
           });
 
-          if (authError) {
-            if (authError.status === 429) {
-              throw new Error('Limite de tentativas excedido para este e-mail. Marque "Já possui conta" se o usuário já estiver cadastrado.');
-            }
-            // Se o usuário já existe, ignoramos o erro e prosseguimos com o cadastro da estética
-            // O vínculo do user_id será feito automaticamente no primeiro login do usuário
-            if (authError.status !== 400) {
-              throw authError;
-            }
+          if (!authError && authData?.user?.id) {
+            authUserId = authData.user.id;
+          } else if (authError) {
+            console.warn('Aviso do Supabase Auth (será vinculado no 1º login):', authError.message);
           }
-          authUserId = authData?.user?.id;
         }
 
         await saveAesthetic({
           name: formData.name,
           owner: formData.owner,
-          email: formData.email,
+          email: formData.email.trim().toLowerCase(),
           phone: formData.phone,
           user_id: authUserId || undefined
         });
