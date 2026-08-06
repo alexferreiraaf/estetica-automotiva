@@ -15,8 +15,10 @@ import {
   Calendar, 
   DollarSign, 
   CheckCircle2, 
-  Clock 
+  Clock,
+  LogIn
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getAesthetics, saveAesthetic, updateAesthetic, toggleAestheticStatus, deleteAesthetic } from '../../data/aesthetics';
 import type { Aesthetic } from '../../data/aesthetics';
 import { supabase } from '../../lib/supabase';
@@ -424,6 +426,15 @@ export function Aesthetics() {
     };
   }, []);
 
+  const navigate = useNavigate();
+
+  const handleEnterStore = (aesthetic: Aesthetic) => {
+    localStorage.setItem('admin_auth', 'true');
+    localStorage.setItem('aesthetic_id', aesthetic.id);
+    localStorage.setItem('aesthetic_name', aesthetic.name);
+    navigate('/admin');
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -641,6 +652,14 @@ export function Aesthetics() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        <button 
+                          onClick={() => handleEnterStore(aesthetic)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/10 border border-gold/40 text-gold font-bold text-xs rounded-lg hover:bg-gold/20 transition-all cursor-pointer"
+                          title="Acessar painel como esta estética"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          Acessar Loja
+                        </button>
                         <button 
                           onClick={() => setReportAesthetic(aesthetic)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-main border border-border-main text-text-primary font-bold text-xs rounded-lg hover:border-gold hover:text-gold transition-all"

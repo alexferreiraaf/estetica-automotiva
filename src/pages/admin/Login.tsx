@@ -125,34 +125,65 @@ export function Login() {
     navigate('/admin');
   };
 
+  const [resetSuccess, setResetSuccess] = useState('');
+
+  const handleForgotPassword = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Por favor, digite seu e-mail no campo acima antes de solicitar a redefinição.');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    setResetSuccess('');
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail);
+      if (resetErr) throw resetErr;
+      setResetSuccess(`Link para redefinir a senha enviado para ${cleanEmail}! Verifique sua caixa de entrada/spam.`);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao enviar redefinição de senha.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleActivate = async () => {
     setIsLoading(true);
     setError('');
+    setResetSuccess('');
+    const cleanEmail = email.trim().toLowerCase();
     try {
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password
       });
 
       if (signUpError) {
         if (signUpError.status === 429) {
-          throw new Error('Muitas tentativas. Por favor, aguarde alguns minutos antes de tentar ativar novamente.');
+          throw new Error('Muitas tentativas. Por favor, aguarde alguns minutos antes de tentar novamente.');
         }
-        throw signUpError;
+        
+        // Se a conta já existe no Supabase Auth, tentamos o login direto
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password
+        });
+
+        if (signInErr) {
+          throw new Error('Esta conta já está registrada no banco. A senha digitada não confere com a senha definida no cadastro. Use "Esqueceu a senha?" se precisar trocar.');
+        }
+      } else {
+        // Tenta logar após o signUp
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password
+        });
+
+        if (signInError) throw signInError;
       }
-
-      // Tenta logar imediatamente após o signUp
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (signInError) throw signInError;
       
-      // O restante do processo de login será tratado pelo useEffect ou pela continuação do handleLogin
-      // Para simplificar, vamos apenas recarregar a página ou chamar o handleLogin novamente
       window.location.reload();
-
     } catch (err: any) {
       setError(err.message || 'Erro ao ativar conta.');
     } finally {
@@ -269,14 +300,25 @@ export function Login() {
                 </div>
               </div>
 
+              {resetSuccess && (
+                <div className="p-3 rounded-lg flex items-center gap-2 mb-4 bg-green-500/10 border border-green-500/50 text-green-400 text-sm font-medium">
+                  <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                  <p>{resetSuccess}</p>
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-sm pt-2">
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input type="checkbox" className="rounded border-border-main bg-bg-card text-gold focus:ring-gold" />
                   <span className="text-text-secondary">Lembrar-me</span>
                 </label>
-                <a href="#" className="text-gold hover:text-gold-light transition-colors">
+                <button 
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-gold hover:text-gold-light transition-colors text-xs font-bold underline cursor-pointer"
+                >
                   Esqueceu a senha?
-                </a>
+                </button>
               </div>
 
               <button
