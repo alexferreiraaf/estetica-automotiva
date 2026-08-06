@@ -20,10 +20,12 @@ export function Login() {
     setIsLoading(true);
     setError('');
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       // 1. Auth with Supabase Authentication (Now handles everyone)
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password
       });
       
@@ -33,14 +35,14 @@ export function Login() {
         const { data: aestheticExists } = await supabase
           .from('aesthetics')
           .select('id')
-          .eq('email', email)
-          .single();
+          .ilike('email', cleanEmail)
+          .maybeSingle();
 
         if (aestheticExists) {
           setShowActivation(true);
           setError('Sua conta ainda não foi ativada ou a senha está incorreta.');
         } else {
-          setError('E-mail ou senha incorretos.');
+          setError('E-mail ou senha incorretos. Verifique se o e-mail cadastrado está correto.');
         }
         setIsLoading(false);
         return;
@@ -57,56 +59,51 @@ export function Login() {
         return;
       }
 
-      // 3. Fetch Aesthetics for this user
+      // 3. Fetch Aesthetics for this user (by user_id or email match)
       const { data: aesthetics, error: dbError } = await supabase
         .from('aesthetics')
         .select('*')
-        .eq('user_id', user?.id);
+        .or(`user_id.eq.${user?.id},email.ilike.${cleanEmail}`);
       
       if (dbError) throw dbError;
 
       if (aesthetics && aesthetics.length > 1) {
-        // Show selection screen
+        // Link user_id for any match missing user_id
+        for (const item of aesthetics) {
+          if (!item.user_id && user?.id) {
+            await supabase.from('aesthetics').update({ user_id: user.id }).eq('id', item.id);
+          }
+        }
         setAvailableAesthetics(aesthetics);
         setIsLoading(false);
         return;
       }
 
-      const aesthetic = aesthetics && aesthetics.length > 0 ? aesthetics[0] : null;
+      let aesthetic = aesthetics && aesthetics.length > 0 ? aesthetics[0] : null;
 
       if (!aesthetic) {
-        // Fallback for legacy or auto-creation
-        const { data: legacyAesthetic } = await supabase
+        // Auto-create aesthetic if email doesn't exist yet
+        const { data: newAesthetic, error: createError } = await supabase
           .from('aesthetics')
-          .select('*')
-          .eq('email', email)
+          .insert([{
+            name: 'Minha Estética',
+            owner: cleanEmail.split('@')[0],
+            email: cleanEmail,
+            user_id: user?.id,
+            status: 'active'
+          }])
+          .select()
           .single();
-        
-        let aestheticData = legacyAesthetic;
 
-        if (!legacyAesthetic) {
-          const { data: newAesthetic, error: createError } = await supabase
-            .from('aesthetics')
-            .insert([{
-              name: 'Minha Estética',
-              owner: email.split('@')[0],
-              email: email,
-              user_id: user.id,
-              status: 'active'
-            }])
-            .select()
-            .single();
-
-          if (createError) throw createError;
-          aestheticData = newAesthetic;
-        } else if (!legacyAesthetic.user_id) {
-          await supabase.from('aesthetics').update({ user_id: user.id }).eq('id', legacyAesthetic.id);
-        }
-
-        handleEnterAesthetic(aestheticData);
-      } else {
-        handleEnterAesthetic(aesthetic);
+        if (createError) throw createError;
+        aesthetic = newAesthetic;
+      } else if (!aesthetic.user_id && user?.id) {
+        // Link user_id to existing aesthetic
+        await supabase.from('aesthetics').update({ user_id: user.id }).eq('id', aesthetic.id);
+        aesthetic.user_id = user.id;
       }
+
+      handleEnterAesthetic(aesthetic);
     } catch (err: any) {
       console.error('Erro no login:', err);
       setError(err.message || 'Erro ao conectar ao servidor.');
