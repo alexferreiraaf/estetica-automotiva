@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, ShieldCheck, Sun, Moon, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -14,6 +14,51 @@ export function Login() {
   const [availableAesthetics, setAvailableAesthetics] = useState<any[]>([]);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    // Escuta confirmação de e-mail ou login via hash URL do Supabase
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        setIsLoading(true);
+        const user = session.user;
+        const userEmail = user.email?.trim().toLowerCase();
+
+        if (userEmail === 'super@plataforma.com') {
+          localStorage.setItem('superadmin_auth', 'true');
+          localStorage.removeItem('aesthetic_id');
+          localStorage.removeItem('aesthetic_name');
+          navigate('/superadmin');
+          return;
+        }
+
+        try {
+          const { data: aesthetics } = await supabase
+            .from('aesthetics')
+            .select('*')
+            .or(`user_id.eq.${user.id},email.ilike.${userEmail}`);
+
+          let aesthetic = aesthetics && aesthetics.length > 0 ? aesthetics[0] : null;
+
+          if (aesthetic) {
+            if (!aesthetic.user_id) {
+              await supabase.from('aesthetics').update({ user_id: user.id }).eq('id', aesthetic.id);
+              aesthetic.user_id = user.id;
+            }
+            handleEnterAesthetic(aesthetic);
+          } else {
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error('Erro ao processar login automático por e-mail:', err);
+          setIsLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
