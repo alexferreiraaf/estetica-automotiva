@@ -15,9 +15,20 @@ export function Login() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
 
+  const [isPasswordResetMode, setIsPasswordResetMode] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetSuccessMsg, setResetSuccessMsg] = useState('');
+
   useEffect(() => {
-    // Escuta confirmação de e-mail ou login via hash URL do Supabase
+    // Escuta confirmação de e-mail ou redefinição de senha via hash URL do Supabase
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordResetMode(true);
+        setIsLoading(false);
+        return;
+      }
+
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
         setIsLoading(true);
         const user = session.user;
@@ -183,11 +194,44 @@ export function Login() {
     setError('');
     setResetSuccess('');
     try {
-      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail);
+      const redirectUrl = `${window.location.origin}/login`;
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: redirectUrl
+      });
       if (resetErr) throw resetErr;
       setResetSuccess(`Link para redefinir a senha enviado para ${cleanEmail}! Verifique sua caixa de entrada/spam.`);
     } catch (err: any) {
       setError(err.message || 'Erro ao enviar redefinição de senha.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setResetSuccessMsg('');
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateErr) throw updateErr;
+
+      setResetSuccessMsg('Senha alterada com sucesso! Redirecionando...');
+      setTimeout(() => {
+        setIsPasswordResetMode(false);
+        window.location.href = '/admin';
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao atualizar a senha.');
     } finally {
       setIsLoading(false);
     }
@@ -262,10 +306,79 @@ export function Login() {
             </div>
           </div>
           
-          <h2 className="text-2xl font-bold text-text-primary text-center mb-2">Acesso Restrito</h2>
-          <p className="text-text-secondary text-center mb-8">Área exclusiva para administração</p>
+          <h2 className="text-2xl font-bold text-text-primary text-center mb-2">
+            {isPasswordResetMode ? 'Redefinir Senha' : 'Acesso Restrito'}
+          </h2>
+          <p className="text-text-secondary text-center mb-8">
+            {isPasswordResetMode ? 'Digite sua nova senha abaixo' : 'Área exclusiva para administração'}
+          </p>
 
-          {availableAesthetics.length > 0 ? (
+          {isPasswordResetMode ? (
+            <form onSubmit={handleUpdatePassword} className="space-y-5">
+              {error && (
+                <div className="p-3 rounded-lg flex items-center gap-2 mb-4 bg-red-500/10 border border-red-500/50 text-red-400 text-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {resetSuccessMsg && (
+                <div className="p-3 rounded-lg flex items-center gap-2 mb-4 bg-green-500/10 border border-green-500/50 text-green-400 text-sm font-medium">
+                  <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                  <p>{resetSuccessMsg}</p>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary ml-1">Nova Senha</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="w-5 h-5 text-text-muted" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary ml-1">Confirmar Nova Senha</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="w-5 h-5 text-text-muted" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-bg-main border border-border-main rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold transition-all"
+                    placeholder="Repita a nova senha"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-gradient-to-r from-gold to-gold-light hover:from-gold-dark hover:to-gold text-black font-bold rounded-xl transition-all flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed mt-6 cursor-pointer"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Salvar Nova Senha</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : availableAesthetics.length > 0 ? (
             <div className="space-y-4">
               <p className="text-sm font-medium text-text-secondary mb-2">Selecione qual estética deseja gerenciar:</p>
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
